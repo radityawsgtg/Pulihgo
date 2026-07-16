@@ -39,6 +39,10 @@ const DUMMY_TARGET_ROM_DEG = 70;
 // target is what we nudge toward, never past.
 const DUMMY_CEILING_ROM_DEG = 90;
 
+// Fixed size for the circular SVG gauge — not per-patient config, just layout.
+const GAUGE_SIZE = 220;
+const GAUGE_STROKE = 14;
+
 type CueTone = 'push' | 'positive' | 'stop';
 
 /**
@@ -140,6 +144,19 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
 
   const past = isPastCeiling(value);
 
+  // Drives the SVG gauge + Feedback Coach Box below — see romCue() doc
+  // comment for why this reads the live angle, not peak ROM.
+  const liveAbs = Math.abs(value);
+  const cue = romCue(liveAbs, DUMMY_TARGET_ROM_DEG, DUMMY_CEILING_ROM_DEG);
+  const gaugeRadius = (GAUGE_SIZE - GAUGE_STROKE) / 2;
+  const gaugeCircumference = 2 * Math.PI * gaugeRadius;
+  const gaugeProgress = Math.min(liveAbs / DUMMY_CEILING_ROM_DEG, 1);
+  const gaugeStrokeDashoffset = gaugeCircumference * (1 - gaugeProgress);
+  // Deliberately not green-for-success at the ceiling — reaching it is a
+  // safety stop, never a reward (AGENTS.md guardrail 3).
+  const gaugeColor = cue.tone === 'stop' ? '#ff5252' : cue.tone === 'positive' ? '#00e676' : '#00e5ff';
+  const feedbackSub = `${liveAbs.toFixed(0)}° now · target ${DUMMY_TARGET_ROM_DEG}° · ceiling ${DUMMY_CEILING_ROM_DEG}°`;
+
   if (granted === false) {
     return (
       <View style={[styles.permissionContainer, { backgroundColor: colors.bg }]}>
@@ -212,30 +229,30 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
           {/* Large Interactive SVG Gauge */}
           <View style={styles.gaugeContainer}>
             <View style={styles.svgWrapper}>
-              <Svg width={gaugeSize} height={gaugeSize}>
+              <Svg width={GAUGE_SIZE} height={GAUGE_SIZE}>
                 <Circle
-                  cx={gaugeSize / 2}
-                  cy={gaugeSize / 2}
-                  r={radius}
+                  cx={GAUGE_SIZE / 2}
+                  cy={GAUGE_SIZE / 2}
+                  r={gaugeRadius}
                   stroke={isDark ? '#1c1f22' : '#e2e8f0'}
-                  strokeWidth={gaugeStroke}
+                  strokeWidth={GAUGE_STROKE}
                   fill="transparent"
                 />
                 <Circle
-                  cx={gaugeSize / 2}
-                  cy={gaugeSize / 2}
-                  r={radius}
+                  cx={GAUGE_SIZE / 2}
+                  cy={GAUGE_SIZE / 2}
+                  r={gaugeRadius}
                   stroke={gaugeColor}
-                  strokeWidth={gaugeStroke}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
+                  strokeWidth={GAUGE_STROKE}
+                  strokeDasharray={gaugeCircumference}
+                  strokeDashoffset={gaugeStrokeDashoffset}
                   strokeLinecap="round"
                   fill="transparent"
-                  transform={`rotate(-90 ${gaugeSize / 2} ${gaugeSize / 2})`}
+                  transform={`rotate(-90 ${GAUGE_SIZE / 2} ${GAUGE_SIZE / 2})`}
                 />
               </Svg>
               <View style={styles.gaugeValueWrapper}>
-                <Text style={[styles.angleText, { color: colors.title }, past && { color: '#ff5252' }]}>
+                <Text style={[styles.angleText, { color: colors.title }, cue.tone === 'stop' && { color: '#ff5252' }]}>
                   {value.toFixed(0)}°
                 </Text>
                 <Text style={[styles.angleLabel, { color: colors.body }]}>FOREARM ANGLE</Text>
@@ -243,10 +260,10 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
             </View>
           </View>
 
-          {/* Feedback Coach Box */}
-          <View style={[styles.feedbackBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }, past && styles.feedbackBoxWarn]}>
-            <Text style={[styles.feedbackText, { color: colors.title }, past && styles.feedbackTextWarn]}>
-              {feedbackMessage}
+          {/* Feedback Coach Box — driven by romCue(), see top of file */}
+          <View style={[styles.feedbackBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }, cue.tone === 'stop' && styles.feedbackBoxWarn]}>
+            <Text style={[styles.feedbackText, { color: colors.title }, cue.tone === 'stop' && styles.feedbackTextWarn]}>
+              {cue.text}
             </Text>
             <Text style={[styles.feedbackSubText, { color: colors.body }]}>
               {feedbackSub}
@@ -342,6 +359,15 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
   );
 }
 
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statV}>{value}</Text>
+      <Text style={styles.statL}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   c: { flex: 1, justifyContent: 'center', padding: 24 },
   title: { color: '#12a5b8', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
@@ -353,6 +379,70 @@ const styles = StyleSheet.create({
   stat: { alignItems: 'center' },
   statV: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
   statL: { color: '#9fb3ba', fontSize: 13 },
+
+  permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  warnText: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 8 },
+  warnSubText: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
+
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  scroll: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+
+  activeHeader: { marginBottom: 20 },
+  activeHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  activeLabel: { color: '#00e5ff', fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  themeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exerciseName: { fontSize: 20, fontWeight: '800', marginTop: 6 },
+
+  gaugeContainer: { alignItems: 'center', marginVertical: 24 },
+  svgWrapper: { width: GAUGE_SIZE, height: GAUGE_SIZE, alignItems: 'center', justifyContent: 'center' },
+  gaugeValueWrapper: {
+    position: 'absolute',
+    width: GAUGE_SIZE,
+    height: GAUGE_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  angleText: { fontSize: 44, fontWeight: '800' },
+  angleLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 4 },
+
+  // Deliberately NOT a "success" color — reaching the ceiling is a safety
+  // stop, never a reward (AGENTS.md guardrail 3).
+  feedbackBox: { borderRadius: 14, borderWidth: 1, padding: 16, marginBottom: 20, alignItems: 'center' },
+  feedbackBoxWarn: { backgroundColor: 'rgba(255, 82, 82, 0.08)', borderColor: '#ff5252' },
+  feedbackText: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  feedbackTextWarn: { color: '#ff5252' },
+  feedbackSubText: { fontSize: 12, textAlign: 'center', marginTop: 6 },
+
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  statCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    alignItems: 'center',
+    marginHorizontal: 6,
+  },
+  statLabel: { fontSize: 10.5, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
+  statValue: { fontSize: 24, fontWeight: '800' },
+
+  controls: { marginTop: 4 },
+  btnPrimary: {
+    backgroundColor: '#00e5ff',
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+
   btn: {
     backgroundColor: '#12a5b8',
     paddingVertical: 16,
