@@ -233,6 +233,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [modalClickCount, setModalClickCount] = useState(0);
   const [expandedLogs, setExpandedLogs] = useState(false);
+  const [showStrainModal, setShowStrainModal] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<number>(Date.now());
   const selectedKey = dayKey(selectedDate);
@@ -453,8 +454,11 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           />
         </View>
 
-        {/* PulihGo Whoop-Style Coach Card */}
-        <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+        {/* PulihGo Whoop-Style Coach Card (Pressable to open Rehab Strain explanation modal) */}
+        <Pressable 
+          onPress={() => setShowStrainModal(true)}
+          style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+        >
           {/* Top section: Score and Header */}
           <View style={styles.coachTopSection}>
             <View style={styles.strainScoreBox}>
@@ -512,7 +516,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
 
           {/* Insight text */}
           <Text style={[styles.coachMessage, { color: colors.body }]}>{coachMessage}</Text>
-        </View>
+        </Pressable>
 
         {/* Practice Streak Banner (Tapping triggers flame burst and opens Duolingo modal popup) */}
         <Pressable 
@@ -623,6 +627,67 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           </>
         )}
       </ScrollView>
+
+      {/* Rehab Strain Explanation Modal */}
+      <Modal
+        visible={showStrainModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowStrainModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <Pressable onPress={() => setShowStrainModal(false)} style={styles.modalCloseBtn}>
+              <Ionicons name="close" size={24} color={colors.title} />
+            </Pressable>
+
+            <Ionicons name="information-circle-outline" size={48} color="#00e5ff" style={{ marginTop: 24, marginBottom: 8 }} />
+            <Text style={[styles.explainModalTitle, { color: colors.title }]}>Rehab Strain</Text>
+            <Text style={[styles.explainModalSub, { color: colors.body }]}>
+              Rehab Strain scores the cumulative physical load, coordination stability, and safety compliance of your forearm rotations on a scale from 0.0 to 21.0.
+            </Text>
+
+            <View style={[styles.explainScaleContainer, { backgroundColor: colors.cardBg, borderColor: colors.borderStyle }]}>
+              <View style={styles.explainZoneItem}>
+                <View style={[styles.zoneDot, { backgroundColor: '#00e676' }]} />
+                <View style={styles.explainZoneTextCol}>
+                  <Text style={[styles.explainZoneTitle, { color: colors.title }]}>SAFE ZONE (0.0 - 14.9)</Text>
+                  <Text style={[styles.explainZoneDesc, { color: colors.body }]}>
+                    Controlled sweeps below the 90° ceiling with zero joint discomfort. Reinforces safe neurological pathways.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.explainZoneItem}>
+                <View style={[styles.zoneDot, { backgroundColor: '#ffb020' }]} />
+                <View style={styles.explainZoneTextCol}>
+                  <Text style={[styles.explainZoneTitle, { color: colors.title }]}>LOAD ZONE (15.0 - 17.9)</Text>
+                  <Text style={[styles.explainZoneDesc, { color: colors.body }]}>
+                    Moderate muscle loading (e.g. mild discomfort, high volume, or rotation near boundaries). Promotes strength adaptation.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.explainZoneItem}>
+                <View style={[styles.zoneDot, { backgroundColor: '#ff5252' }]} />
+                <View style={styles.explainZoneTextCol}>
+                  <Text style={[styles.explainZoneTitle, { color: colors.title }]}>HALT ZONE (18.0 - 21.0)</Text>
+                  <Text style={[styles.explainZoneDesc, { color: colors.body }]}>
+                    High risk of joint strain (e.g. practice suspended for pain, or hyperextended past the 90° ceiling). Flags need for rest.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <Pressable 
+              onPress={() => setShowStrainModal(false)} 
+              style={[styles.modalGotItBtn, { backgroundColor: '#00e5ff' }]}
+            >
+              <Text style={styles.modalGotItText}>Got it</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Adaptive Duolingo-Style Streak Modal Popout */}
       <Modal
@@ -1203,5 +1268,50 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  explainModalTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  explainModalSub: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  explainScaleContainer: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 20,
+  },
+  explainZoneItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 8,
+  },
+  zoneDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 5,
+    marginRight: 10,
+  },
+  explainZoneTextCol: {
+    flex: 1,
+  },
+  explainZoneTitle: {
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  explainZoneDesc: {
+    fontSize: 10.5,
+    lineHeight: 15,
   },
 });
