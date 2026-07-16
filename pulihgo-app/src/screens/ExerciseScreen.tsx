@@ -150,7 +150,7 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
 
   if (asking) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center' }]}>
         <View style={[styles.questionnaireCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
           <Ionicons name="heart-circle-outline" size={54} color="#00e5ff" style={{ marginBottom: 12, alignSelf: 'center' }} />
           <Text style={[styles.questionTitle, { color: colors.title }]}>How did that feel?</Text>
