@@ -310,6 +310,31 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
     }
   }
 
+  // Whoop-style Rehab Strain score calculation (0.0 to 21.0)
+  let rehabStrain = 0.0;
+  let indicatorPosition: any = '15%'; // default SAFE position
+  
+  if (hasSelectedPractice) {
+    const worstDiscomfort = daySessions.some(s => s.pain === 'stopped');
+    const worstMildPain = daySessions.some(s => s.pain === 'mild');
+    const bestRom = daySessions.reduce((max, s) => Math.max(max, s.peakRomDeg), 0);
+    const bestSmoothness = daySessions.reduce((max, s) => Math.max(max, s.avgSmoothness), 0);
+
+    if (worstDiscomfort) {
+      rehabStrain = 18.8; // High joint load/strain
+      indicatorPosition = '85%'; // HALT
+    } else if (worstMildPain) {
+      rehabStrain = 15.2; // Moderate load
+      indicatorPosition = '50%'; // LOAD
+    } else if (bestSmoothness < 0.6 || bestRom < 55) {
+      rehabStrain = 11.4; // Low ROM/Smoothness load
+      indicatorPosition = '50%'; // LOAD
+    } else {
+      rehabStrain = 14.5; // Optimal Safe load
+      indicatorPosition = '15%'; // SAFE
+    }
+  }
+
   const weekDays = getWeekDays(selectedDate);
 
   const shiftDate = (days: number) => {
@@ -422,12 +447,64 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           />
         </View>
 
-        {/* PulihGo Coach Card */}
-        <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder, borderLeftColor: coachColor }]}>
-          <View style={styles.coachHeader}>
-            <Ionicons name={coachIcon as any} size={20} color={coachColor} style={styles.coachIcon} />
-            <Text style={[styles.coachTitle, { color: colors.title }]}>{coachTitle}</Text>
+        {/* PulihGo Whoop-Style Coach Card */}
+        <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          {/* Top section: Score and Header */}
+          <View style={styles.coachTopSection}>
+            <View style={styles.strainScoreBox}>
+              <Text style={styles.strainScoreVal}>{rehabStrain.toFixed(1)}</Text>
+              <Text style={styles.strainScoreLbl}>REHAB STRAIN</Text>
+            </View>
+            
+            <View style={styles.coachHeaderInfo}>
+              <View style={styles.coachHeaderTitleRow}>
+                <Ionicons name={coachIcon as any} size={16} color={coachColor} style={{ marginRight: 6 }} />
+                <Text style={[styles.coachTitle, { color: colors.title }]}>{coachTitle}</Text>
+              </View>
+              <Text style={styles.activitySummaryLabel}>ACTIVITY INSIGHT</Text>
+            </View>
           </View>
+
+          {/* Zone slider bar */}
+          <View style={styles.zoneSliderContainer}>
+            <View style={styles.zoneSliderTrack}>
+              <View style={[styles.zoneSegment, { backgroundColor: '#00e676', borderTopLeftRadius: 3, borderBottomLeftRadius: 3 }]} />
+              <View style={[styles.zoneSegment, { backgroundColor: '#ffb020' }]} />
+              <View style={[styles.zoneSegment, { backgroundColor: '#ff5252', borderTopRightRadius: 3, borderBottomRightRadius: 3 }]} />
+            </View>
+            <View style={[styles.zoneIndicatorDot, { left: indicatorPosition, backgroundColor: coachColor }]} />
+          </View>
+          <View style={styles.zoneLabelsRow}>
+            <Text style={[styles.zoneLabel, { color: colors.body }]}>SAFE</Text>
+            <Text style={[styles.zoneLabel, { color: colors.body, textAlign: 'center' }]}>LOAD</Text>
+            <Text style={[styles.zoneLabel, { color: colors.body, textAlign: 'right' }]}>HALT</Text>
+          </View>
+
+          {/* Mini Stats Grid */}
+          <View style={[styles.coachMiniStats, { borderColor: colors.borderStyle }]}>
+            <View style={styles.miniStatCol}>
+              <Text style={[styles.miniStatVal, { color: colors.title }]}>
+                {hasSelectedPractice ? daySessions.length : '0'}
+              </Text>
+              <Text style={[styles.miniStatLbl, { color: colors.body }]}>SESSIONS</Text>
+            </View>
+            <View style={[styles.miniStatDivider, { backgroundColor: colors.borderStyle }]} />
+            <View style={styles.miniStatCol}>
+              <Text style={[styles.miniStatVal, { color: colors.title }]}>
+                {hasSelectedPractice ? `${dayBestRom.toFixed(0)}°` : '0°'}
+              </Text>
+              <Text style={[styles.miniStatLbl, { color: colors.body }]}>PEAK ROM</Text>
+            </View>
+            <View style={[styles.miniStatDivider, { backgroundColor: colors.borderStyle }]} />
+            <View style={styles.miniStatCol}>
+              <Text style={[styles.miniStatVal, { color: colors.title }]}>
+                {hasSelectedPractice ? `${(dayAvgSmoothness * 100).toFixed(0)}%` : '0%'}
+              </Text>
+              <Text style={[styles.miniStatLbl, { color: colors.body }]}>SMOOTHNESS</Text>
+            </View>
+          </View>
+
+          {/* Insight text */}
           <Text style={[styles.coachMessage, { color: colors.body }]}>{coachMessage}</Text>
         </View>
 
@@ -709,18 +786,119 @@ const styles = StyleSheet.create({
   },
 
   coachCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderLeftWidth: 4,
     borderWidth: 1,
   },
-  coachHeader: {
+  coachTopSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 16,
   },
-  coachIcon: { marginRight: 8 },
+  strainScoreBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 16,
+    borderRightWidth: 1,
+    borderColor: 'rgba(142, 154, 160, 0.2)',
+    minWidth: 75,
+  },
+  strainScoreVal: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#00e5ff',
+  },
+  strainScoreLbl: {
+    fontSize: 7.5,
+    fontWeight: '900',
+    color: '#8e9aa0',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  coachHeaderInfo: {
+    flex: 1,
+    paddingLeft: 14,
+  },
+  coachHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activitySummaryLabel: {
+    fontSize: 8.5,
+    fontWeight: '900',
+    color: '#8e9aa0',
+    marginTop: 4,
+    letterSpacing: 1,
+  },
+  zoneSliderContainer: {
+    height: 18,
+    position: 'relative',
+    justifyContent: 'center',
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  zoneSliderTrack: {
+    height: 6,
+    flexDirection: 'row',
+    width: '100%',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  zoneSegment: {
+    flex: 1,
+  },
+  zoneIndicatorDot: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 1.5,
+    elevation: 2,
+  },
+  zoneLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginBottom: 16,
+  },
+  zoneLabel: {
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    flex: 1,
+  },
+  coachMiniStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    marginBottom: 14,
+  },
+  miniStatCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  miniStatVal: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  miniStatLbl: {
+    fontSize: 8,
+    fontWeight: '800',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  miniStatDivider: {
+    width: 1,
+    height: '100%',
+  },
   coachTitle: {
     fontSize: 14,
     fontWeight: '800',
