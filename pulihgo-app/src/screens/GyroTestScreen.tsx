@@ -3,11 +3,25 @@
 // Shows all 3 raw angles + bars. Use it to find which axis moves most during
 // forearm supination/pronation, then set EXERCISE_AXIS in ExerciseScreen.
 
+import { useEffect, useRef } from 'react';
 import { useDeviceAngle } from '../sensors/useDeviceAngle';
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function GyroTestScreen() {
   const { angles, granted } = useDeviceAngle(50);
+  const lastLog = useRef(0);
+
+  // Log CSV to the laptop terminal ~4x/sec: time,pitch,roll,yaw
+  // Capture a real forearm sweep here, paste into a spreadsheet, and use it to
+  // tune the rep thresholds (src/metrics/repDetector.ts).
+  useEffect(() => {
+    const now = Date.now();
+    if (now - lastLog.current < 250) return;
+    lastLog.current = now;
+    console.log(
+      `${now},${angles.pitch.toFixed(2)},${angles.roll.toFixed(2)},${angles.yaw.toFixed(2)}`
+    );
+  }, [angles]);
 
   const Bar = ({ label, value }: { label: string; value: number }) => (
     <View style={styles.row}>
