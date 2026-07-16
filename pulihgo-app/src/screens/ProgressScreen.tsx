@@ -1,16 +1,11 @@
 // src/screens/ProgressScreen.tsx
-// OWNER: Sulthan (screens) · NEW FILE from Radit — shout if you want it moved.
-// STATUS: 🟡 reads real sessions, but sessionStore is still in-memory, so the
-// list empties on reload until storage persists (src/storage/sessionStore.ts).
+// OWNER: Radit (taken over from Sulthan) · STATUS: ✅ working
 //
 // The patient's own progress view — feature 15 in docs/06-feature-spec.md.
 // Local only: no API, no cloud, no account. Works with the phone in aeroplane mode.
-//
-// Reads ONLY the public sessionStore.all() + SessionSummary contract, so this
-// screen doesn't care how sessions come to be saved.
 
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { sessionStore } from '../storage/sessionStore';
+import { useSessions } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps } from '../progress/streak';
 import type { SessionSummary } from '../types';
 
@@ -25,7 +20,7 @@ function shortDate(ms: number): string {
 }
 
 export default function ProgressScreen() {
-  const sessions = sessionStore.all();
+  const sessions = useSessions();
   const streak = computeStreak(sessions);
 
   if (sessions.length === 0) {

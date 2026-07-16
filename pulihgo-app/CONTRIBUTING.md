@@ -7,9 +7,10 @@ Short and practical — we have a sprint to run.
 Each person works mostly inside **their own folder** (see `AGENTS.md` §3). That's how
 4 people build in parallel without merge conflicts:
 
-- **Radit** → `src/sensors/`, `src/types.ts`, `App.tsx`, reviews + merges
+- **Radit** → `src/sensors/`, `src/types.ts`, `App.tsx`, `src/progress/`, plus
+  `src/screens/`, `src/storage/`, `src/safety/` (taken over) · reviews + merges
 - **Pradipta** → `src/metrics/`
-- **Sulthan** → `src/screens/`, `src/storage/`, `src/safety/`
+- **Sulthan** → research: clinician interview + `docs/04-research-references.md`
 - **Adnan** → pitch deck + demo (uses `docs/`, little code)
 
 If you need a shape another folder owns, add it to `src/types.ts` and tell the owner.

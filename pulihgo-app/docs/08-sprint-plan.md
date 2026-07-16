@@ -7,9 +7,9 @@ one rotational exercise, safely. Everything else is a later phase.
 
 | Person | Role | Owns (mostly edits here) |
 |--------|------|--------------------------|
-| **Raditya** | Tech Lead + core | `src/sensors/`, `src/types.ts`, `App.tsx`, PR reviews, keeps `main` runnable |
+| **Raditya** | Tech Lead + core | `src/sensors/`, `src/types.ts`, `App.tsx`, `src/progress/`, + `src/screens/`, `src/storage/`, `src/safety/` (taken over), PR reviews, keeps `main` runnable |
 | **Pradipta** | Tech — metrics | `src/metrics/` (rep detection, ROM, smoothness) |
-| **Sulthan** | Tech + research | `src/screens/`, `src/storage/`, `src/safety/`, + interview/refs |
+| **Sulthan** | Research | clinician interview (`docs/05-…`) + `docs/04-research-references.md` |
 | **Adnan** | Pitch | deck, demo script, backup demo video, presenting (uses `docs/`) |
 
 Owning separate folders = building in parallel without merge conflicts. The

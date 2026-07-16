@@ -17,9 +17,12 @@ dashboard later. It **supplements, never replaces** a therapist.
 ## 2. Current state
 
 - 🟢 **Working:** reading the fused angle on-device (`src/sensors/useDeviceAngle.ts`),
-  calibration/zero, a baseline rep detector + peak-ROM, and a live Exercise screen.
-- 🟡 **In progress:** tuning rep thresholds, smoothness, session persistence, the
-  summary screen.
+  calibration/zero, a baseline rep detector + peak-ROM, a live Exercise screen, the
+  full session loop (calibrate → reps → finish → saved), pain check + stop rule,
+  session persistence across restarts (AsyncStorage), summary + progress/streak.
+- 🟡 **In progress:** tuning rep thresholds + the smoothness scale to real captured
+  data; **confirming `EXERCISE_AXIS` on a real forearm** — it is still a guess, and
+  every number the app reports depends on it.
 - ⚪ **Later (do NOT build now):** the game layer, cloud sync, therapist dashboard.
 
 ## 3. Where things live
@@ -30,9 +33,9 @@ dashboard later. It **supplements, never replaces** a therapist.
 | `src/sensors/` | Angle reading (`useDeviceAngle`), calibration (`useCalibratedAngle`), `mockAngle` | Radit |
 | `src/metrics/` | `repDetector`, `rom`, `smoothness` | Pradipta |
 | `src/progress/` | `streak` — adherence metrics over saved sessions (pure, local) | Radit |
-| `src/safety/` | ROM ceiling + pain check | Sulthan |
-| `src/storage/` | local session storage | Sulthan |
-| `src/screens/` | `ExerciseScreen` (MVP loop), `GyroTestScreen`, `ProgressScreen`, `SummaryScreen` | Sulthan |
+| `src/safety/` | ROM ceiling + pain check | Radit |
+| `src/storage/` | local session storage (AsyncStorage-backed) | Radit |
+| `src/screens/` | `ExerciseScreen` (MVP loop), `GyroTestScreen`, `ProgressScreen`, `SummaryScreen` | Radit |
 
 ## 4. Glossary (use these exact terms in code + comments)
 
