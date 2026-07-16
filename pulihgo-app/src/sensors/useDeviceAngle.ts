@@ -12,7 +12,7 @@ const toDeg = (rad: number) => (rad * 180) / Math.PI;
 export function useDeviceAngle(updateMs = 50) {
   const [angles, setAngles] = useState<Angles>({ pitch: 0, roll: 0, yaw: 0 });
   const [granted, setGranted] = useState<boolean | null>(null);
-  const subRef = useRef<{ remove: () => void }>();
+  const subRef = useRef<{ remove: () => void } | undefined>(undefined);
 
   useEffect(() => {
     (async () => {
