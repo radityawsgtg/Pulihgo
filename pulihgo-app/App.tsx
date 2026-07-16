@@ -12,13 +12,15 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import ExerciseScreen from './src/screens/ExerciseScreen';
 import GyroTestScreen from './src/screens/GyroTestScreen';
+import ProgressScreen from './src/screens/ProgressScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 
-type Tab = 'exercise' | 'gyro' | 'summary';
+type Tab = 'exercise' | 'gyro' | 'progress' | 'summary';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'exercise', label: 'Exercise' },
   { key: 'gyro', label: 'Gyro test' },
+  { key: 'progress', label: 'Progress' },
   { key: 'summary', label: 'Summary' },
 ];
 
@@ -36,6 +38,7 @@ export default function App() {
       <View style={styles.screen}>
         {tab === 'exercise' && <ExerciseScreen />}
         {tab === 'gyro' && <GyroTestScreen />}
+        {tab === 'progress' && <ProgressScreen />}
         {tab === 'summary' && <SummaryScreen />}
       </View>
 
