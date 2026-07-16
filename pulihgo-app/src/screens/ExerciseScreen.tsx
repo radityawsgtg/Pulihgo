@@ -37,6 +37,31 @@ const PAIN_LABEL: Record<PainLevel, string> = {
 // once that exists.
 const DUMMY_TARGET_ROM_DEG = 70;
 
+// 👉 TODO(therapist-setup): same as above — hardcoded until it comes from
+// ExerciseConfig.romCeilingDeg. Kept separate from safety.ts's
+// DEFAULT_ROM_CEILING_DEG (that one drives the existing real-time "past safe
+// range" warning off the LIVE angle; this one drives the target/ceiling
+// progress cue off the session's PEAK ROM below). Invariant: must stay
+// greater than DUMMY_TARGET_ROM_DEG — the ceiling is the hard stop, the
+// target is what we nudge toward, never past.
+const DUMMY_CEILING_ROM_DEG = 90;
+
+type CueTone = 'push' | 'positive' | 'stop';
+
+/**
+ * Progress cue based on the session's PEAK ROM so far (not the live angle):
+ *  - below target       -> push the patient a bit further
+ *  - target..ceiling     -> positive, and the push turns off (never nudge
+ *                           past the target once it's reached)
+ *  - at/past ceiling     -> neutral stop message — this is a safety limit,
+ *                           NOT a reward, so the tone must not read as praise
+ */
+function romCue(peakDeg: number, targetDeg: number, ceilingDeg: number): { text: string; tone: CueTone } {
+  if (peakDeg >= ceilingDeg) return { text: 'Cukup — jangan lebih', tone: 'stop' };
+  if (peakDeg >= targetDeg) return { text: 'Bagus! Target tercapai', tone: 'positive' };
+  return { text: 'Ayo, sedikit lagi', tone: 'push' };
+}
+
 export default function ExerciseScreen() {
   const { angles, granted, calibrate } = useCalibratedAngle(SAMPLE_MS);
   const [reps, setReps] = useState(0);
@@ -102,6 +127,7 @@ export default function ExerciseScreen() {
   };
 
   const past = isPastCeiling(value);
+  const cue = romCue(peak, DUMMY_TARGET_ROM_DEG, DUMMY_CEILING_ROM_DEG);
 
   if (granted === false) {
     return (
@@ -139,10 +165,19 @@ export default function ExerciseScreen() {
       <Text style={[styles.cap, past && styles.capWarn]}>
         {past ? '⚠️ Slow down — past safe range' : `safe range ±${DEFAULT_ROM_CEILING_DEG}°`}
       </Text>
+      <Text
+        style={[
+          styles.cue,
+          cue.tone === 'positive' && styles.cuePositive,
+          cue.tone === 'stop' && styles.cueStop,
+        ]}
+      >
+        {cue.text}
+      </Text>
 
       <View style={styles.stats}>
         <Stat label="Reps" value={`${reps}`} />
-        <Stat label="Peak ROM" value={`${peak.toFixed(0)}°`} />
+        <Stat label="Peak ROM" value={`${peak.toFixed(0)}° / ${DUMMY_TARGET_ROM_DEG}°`} />
       </View>
 
       {running ? (
@@ -188,6 +223,11 @@ const styles = StyleSheet.create({
   big: { color: '#fff', fontSize: 72, fontWeight: 'bold', textAlign: 'center' },
   cap: { color: '#7fb8c4', textAlign: 'center', marginBottom: 24 },
   capWarn: { color: '#ffb020', fontWeight: 'bold' },
+  cue: { color: '#7fb8c4', textAlign: 'center', marginTop: -14, marginBottom: 24, fontSize: 15 },
+  cuePositive: { color: '#12a5b8', fontWeight: 'bold' },
+  // Deliberately NOT a "success" color — reaching the ceiling is a safety
+  // stop, never a reward (AGENTS.md guardrail 3).
+  cueStop: { color: '#ffb020', fontWeight: 'bold' },
   stats: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 30 },
   stat: { alignItems: 'center' },
   statV: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
