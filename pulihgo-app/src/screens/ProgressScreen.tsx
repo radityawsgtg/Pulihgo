@@ -245,7 +245,8 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   // Trigger video replay on modal visibility transition
   useEffect(() => {
     if (showStreakModal && videoRef.current) {
-      videoRef.current.replayAsync();
+      videoRef.current.setPositionAsync(0);
+      videoRef.current.playAsync();
     }
   }, [showStreakModal]);
 
@@ -528,7 +529,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
                 style={styles.modalVideo}
                 resizeMode={ResizeMode.CONTAIN}
                 shouldPlay={true}
-                isLooping={true}
+                isLooping={false}
                 isMuted={true}
               />
             </View>
@@ -886,7 +887,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     position: 'relative',
-    backgroundColor: '#000000',
+    backgroundColor: '#121417',
     borderColor: '#1c1f22',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
@@ -922,12 +923,12 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#121417',
   },
   modalVideo: {
     width: 220,
     height: 220,
-    backgroundColor: '#000000',
+    backgroundColor: '#121417',
   },
   modalCalendarCard: {
     width: '100%',
@@ -935,7 +936,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 20,
-    backgroundColor: '#121417',
+    backgroundColor: '#0b0e11',
     borderColor: '#1c1f22',
   },
   modalWeekRow: {
