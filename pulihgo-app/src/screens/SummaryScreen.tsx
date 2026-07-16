@@ -9,7 +9,7 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Dimensions, Animated, Easing, Pressable } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -232,6 +232,47 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
     }
   }
 
+  // Whoop-style chart configurations
+  const chartWidth = Dimensions.get('window').width - 72;
+  const chartHeight = 160;
+  const paddingTop = 15;
+  const paddingBottom = 20;
+  const paddingLeft = 30;
+  const paddingRight = 30;
+
+  const reps = last ? (last.reps || []) : [];
+  const numReps = reps.length;
+  
+  let romPoints = "";
+  let smoothnessPoints = "";
+  
+  const maxValROM = reps.length ? Math.max(100, ...reps.map(r => r.peakRomDeg), 90) : 100;
+  const plotWidth = chartWidth - paddingLeft - paddingRight;
+  const plotHeight = chartHeight - paddingTop - paddingBottom;
+  
+  const romNodeCoords: {x: number, y: number, val: number}[] = [];
+  const smoothNodeCoords: {x: number, y: number, val: number}[] = [];
+
+  if (numReps > 0) {
+    reps.forEach((r, idx) => {
+      const x = paddingLeft + (numReps > 1 ? (idx / (numReps - 1)) * plotWidth : plotWidth / 2);
+      const yRom = chartHeight - paddingBottom - (r.peakRomDeg / maxValROM) * plotHeight;
+      romNodeCoords.push({ x, y: yRom, val: r.peakRomDeg });
+      
+      const sVal = Math.min(1, Math.max(0, r.smoothness));
+      const ySmooth = chartHeight - paddingBottom - sVal * plotHeight;
+      smoothNodeCoords.push({ x, y: ySmooth, val: sVal });
+    });
+    
+    romPoints = romNodeCoords.map(n => `${n.x},${n.y}`).join(" ");
+    smoothnessPoints = smoothNodeCoords.map(n => `${n.x},${n.y}`).join(" ");
+  }
+
+  const gridLines = [0.25, 0.5, 0.75].map(ratio => {
+    const y = chartHeight - paddingBottom - ratio * plotHeight;
+    return y;
+  });
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scroll}>
       {/* Header */}
@@ -278,6 +319,76 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
             <Text style={[styles.gaugeLabel, { color: colors.body }]}>
               {last.pain === 'stopped' ? 'DISCOMFORT' : 'SMOOTHNESS'}
             </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Whoop-style Session Repetition Chart Card */}
+      <View style={[styles.chartCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+        <View style={styles.chartHeader}>
+          <Text style={[styles.chartTitle, { color: colors.title }]}>Repetition Analysis</Text>
+          <Text style={[styles.chartSub, { color: colors.body }]}>Peak ROM vs. Movement Smoothness</Text>
+        </View>
+        
+        {/* SVG Drawing */}
+        <View style={{ width: '100%', height: chartHeight, position: 'relative' }}>
+          {numReps === 0 ? (
+            <View style={styles.emptyChartOverlay}>
+              <Text style={{ color: colors.body, fontSize: 11 }}>No repetitions logged in this session.</Text>
+            </View>
+          ) : (
+            <Svg width={chartWidth} height={chartHeight}>
+              {/* Horizontal grid lines */}
+              {gridLines.map((y, idx) => (
+                <Line key={idx} x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="rgba(142, 154, 160, 0.1)" strokeWidth={1} strokeDasharray="3 3" />
+              ))}
+              
+              {/* Vertical grids for reps */}
+              {romNodeCoords.map((n, idx) => (
+                <Line key={idx} x1={n.x} y1={paddingTop} x2={n.x} y2={chartHeight - paddingBottom} stroke="rgba(142, 154, 160, 0.05)" strokeWidth={1} />
+              ))}
+              
+              {/* Left Y Axis label */}
+              <SvgText x={10} y={chartHeight - paddingBottom} fill={colors.body} fontSize={8} fontWeight="bold">0°</SvgText>
+              <SvgText x={10} y={chartHeight - paddingBottom - 0.5 * plotHeight + 3} fill={colors.body} fontSize={8} fontWeight="bold">{(maxValROM / 2).toFixed(0)}°</SvgText>
+              <SvgText x={10} y={paddingTop + 3} fill={colors.body} fontSize={8} fontWeight="bold">{(maxValROM).toFixed(0)}°</SvgText>
+              
+              {/* Right Y Axis label */}
+              <SvgText x={chartWidth - 25} y={chartHeight - paddingBottom} fill={colors.body} fontSize={8} fontWeight="bold">0%</SvgText>
+              <SvgText x={chartWidth - 25} y={chartHeight - paddingBottom - 0.5 * plotHeight + 3} fill={colors.body} fontSize={8} fontWeight="bold">50%</SvgText>
+              <SvgText x={chartWidth - 25} y={paddingTop + 3} fill={colors.body} fontSize={8} fontWeight="bold">100%</SvgText>
+              
+              {/* X Axis labels (R1, R2...) */}
+              {romNodeCoords.map((n, idx) => (
+                <SvgText key={idx} x={n.x} y={chartHeight - 4} fill={colors.body} fontSize={8} textAnchor="middle" fontWeight="bold">R{idx + 1}</SvgText>
+              ))}
+              
+              {/* Lines */}
+              {romPoints ? <Polyline points={romPoints} fill="none" stroke="#00e5ff" strokeWidth={2.5} /> : null}
+              {smoothnessPoints ? <Polyline points={smoothnessPoints} fill="none" stroke="#00e676" strokeWidth={2.5} /> : null}
+              
+              {/* ROM dots */}
+              {romNodeCoords.map((n, idx) => (
+                <Circle key={idx} cx={n.x} cy={n.y} r={4.5} fill="#00e5ff" stroke={colors.cardBg} strokeWidth={1.5} />
+              ))}
+              
+              {/* Smoothness dots */}
+              {smoothNodeCoords.map((n, idx) => (
+                <Circle key={idx} cx={n.x} cy={n.y} r={4.5} fill="#00e676" stroke={colors.cardBg} strokeWidth={1.5} />
+              ))}
+            </Svg>
+          )}
+        </View>
+
+        {/* Legend */}
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#00e5ff' }]} />
+            <Text style={[styles.legendLabel, { color: colors.title }]}>Peak ROM (Deg)</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#00e676' }]} />
+            <Text style={[styles.legendLabel, { color: colors.title }]}>Smoothness (%)</Text>
           </View>
         </View>
       </View>
@@ -588,6 +699,57 @@ const styles = StyleSheet.create({
   reportSectionText: {
     fontSize: 12.5,
     lineHeight: 18,
+  },
+
+  chartCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  chartHeader: {
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  chartSub: {
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  emptyChartOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+    width: '100%',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 12,
+  },
+  legendColor: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  legendLabel: {
+    fontSize: 9.5,
+    fontWeight: '800',
   },
 
   sectionHeader: {
