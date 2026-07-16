@@ -2,11 +2,11 @@
 // OWNER: Radit (taken over from Sulthan) · STATUS: ✅ working
 //
 // Redesigned to match a premium Whoop app dashboard.
-// Incorporates interactive date navigation, animated SVG circular progress gauges,
-// and an interactive, tapping-sensitive flickering fire streak card that explodes sparks.
+// Incorporates date navigation, animated progress gauges, a flickering streak flame,
+// and a custom interactive Duolingo-style streak modal popout with a large animated CSS flame.
 
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps, dayKey } from '../progress/streak';
 import type { SessionSummary } from '../types';
@@ -113,8 +113,9 @@ function CircularProgress({ percentage, color, label, subLabel, theme }: RingPro
   );
 }
 
-// Flickering flame inside the streak banner card (responds to parent click increments)
-function FlickeringFlame({ active, clickCount }: { active: boolean; clickCount: number }) {
+// Flickering flame inside the streak banner card / popup modal (supports size variants and parent clicks)
+function FlickeringFlame({ active, clickCount, size = 'small' }: { active: boolean; clickCount: number; size?: 'small' | 'large' }) {
+  const isLarge = size === 'large';
   const outerScale = useRef(new Animated.Value(1)).current;
   const middleScale = useRef(new Animated.Value(1)).current;
   const flameContainerScale = useRef(new Animated.Value(1)).current;
@@ -153,7 +154,7 @@ function FlickeringFlame({ active, clickCount }: { active: boolean; clickCount: 
     };
   }, [active]);
 
-  // Listen to parent clicks to trigger spring scaling and spark bursts
+  // Listen to clickCount updates to trigger the spring scaling and spark bursts
   useEffect(() => {
     if (clickCount === 0) return;
 
@@ -162,12 +163,13 @@ function FlickeringFlame({ active, clickCount }: { active: boolean; clickCount: 
       Animated.spring(flameContainerScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
     ]).start();
 
+    const multiplier = isLarge ? 2.2 : 1;
     const sparkDestinations = [
-      { x: -28, y: -26 },
-      { x: -8, y: -38 },
-      { x: 12, y: -34 },
-      { x: -22, y: -8 },
-      { x: 24, y: -12 },
+      { x: -28 * multiplier, y: -26 * multiplier },
+      { x: -8 * multiplier, y: -38 * multiplier },
+      { x: 12 * multiplier, y: -34 * multiplier },
+      { x: -22 * multiplier, y: -8 * multiplier },
+      { x: 24 * multiplier, y: -12 * multiplier },
     ];
 
     sparks.forEach((s, i) => {
@@ -176,36 +178,44 @@ function FlickeringFlame({ active, clickCount }: { active: boolean; clickCount: 
       s.opacity.setValue(1);
 
       Animated.parallel([
-        Animated.timing(s.x, { toValue: sparkDestinations[i].x, duration: 500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(s.y, { toValue: sparkDestinations[i].y, duration: 500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(s.opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(s.x, { toValue: sparkDestinations[i].x, duration: 550, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(s.y, { toValue: sparkDestinations[i].y, duration: 550, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(s.opacity, { toValue: 0, duration: 550, useNativeDriver: true }),
       ]).start();
     });
   }, [clickCount]);
 
-  return (
-    <View style={styles.flameTouchZone}>
-      <View style={styles.flameContainer}>
-        {sparks.map((s, idx) => (
-          <Animated.View
-            key={idx}
-            style={[
-              styles.sparkDot,
-              {
-                backgroundColor: s.color,
-                opacity: s.opacity,
-                transform: [{ translateX: s.x }, { translateY: s.y }],
-              },
-            ]}
-          />
-        ))}
+  const flameWidth = isLarge ? 72 : 28;
+  const flameHeight = isLarge ? 72 : 28;
+  const outerSize = isLarge ? 64 : 24;
+  const middleSize = isLarge ? 44 : 16;
+  const innerSize = isLarge ? 28 : 10;
+  const sparkRadius = isLarge ? 4 : 2.5;
 
-        <Animated.View style={[styles.flameScaleWrapper, { transform: [{ scale: flameContainerScale }] }]}>
-          <Animated.View style={[styles.flameTeardrop, styles.flameOuter, { transform: [{ rotate: '-45deg' }, { scale: outerScale }] }]} />
-          <Animated.View style={[styles.flameTeardrop, styles.flameMiddle, { transform: [{ rotate: '-45deg' }, { scale: middleScale }] }]} />
-          <View style={[styles.flameTeardrop, styles.flameInner, { transform: [{ rotate: '-45deg' }] }]} />
-        </Animated.View>
-      </View>
+  return (
+    <View style={[styles.flameContainer, isLarge && { width: 90, height: 110 }]}>
+      {sparks.map((s, idx) => (
+        <Animated.View
+          key={idx}
+          style={[
+            styles.sparkDot,
+            {
+              backgroundColor: s.color,
+              opacity: s.opacity,
+              width: sparkRadius * 2,
+              height: sparkRadius * 2,
+              borderRadius: sparkRadius,
+              transform: [{ translateX: s.x }, { translateY: s.y }],
+            },
+          ]}
+        />
+      ))}
+
+      <Animated.View style={[styles.flameScaleWrapper, { width: flameWidth, height: flameHeight, transform: [{ scale: flameContainerScale }] }]}>
+        <Animated.View style={[styles.flameTeardrop, { width: outerSize, height: outerSize, borderTopRightRadius: outerSize / 2, borderBottomLeftRadius: outerSize / 2, borderBottomRightRadius: outerSize / 2, backgroundColor: '#ff5252', opacity: 0.85, transform: [{ rotate: '-45deg' }, { scale: outerScale }] }]} />
+        <Animated.View style={[styles.flameTeardrop, { width: middleSize, height: middleSize, borderTopRightRadius: middleSize / 2, borderBottomLeftRadius: middleSize / 2, borderBottomRightRadius: middleSize / 2, backgroundColor: '#ffb020', opacity: 0.9, transform: [{ rotate: '-45deg' }, { scale: middleScale }] }]} />
+        <View style={[styles.flameTeardrop, { width: innerSize, height: innerSize, borderTopRightRadius: innerSize / 2, borderBottomLeftRadius: innerSize / 2, borderBottomRightRadius: innerSize / 2, backgroundColor: '#ffd700', transform: [{ rotate: '-45deg' }] }]} />
+      </Animated.View>
     </View>
   );
 }
@@ -220,6 +230,8 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const streak = computeStreak(sessions);
   
   const [clickCount, setClickCount] = useState(0);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  const [modalClickCount, setModalClickCount] = useState(0);
 
   const [selectedDate, setSelectedDate] = useState<number>(Date.now());
   const selectedKey = dayKey(selectedDate);
@@ -240,6 +252,16 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
     ? daySessions.reduce((sum, s) => sum + s.avgSmoothness, 0) / daySessions.length
     : 0;
   const smoothnessPercent = Math.round(dayAvgSmoothness * 100);
+
+  // Trigger auto burst in the modal 250ms after it slides open
+  useEffect(() => {
+    if (showStreakModal) {
+      const timer = setTimeout(() => {
+        setModalClickCount((c) => c + 1);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [showStreakModal]);
 
   const isDark = theme === 'dark';
   const colors = {
@@ -303,6 +325,11 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const dayHasSessions = (date: Date) => {
     const key = dayKey(date.getTime());
     return sessions.some((s) => dayKey(s.startedAt) === key);
+  };
+
+  const handleStreakBannerPress = () => {
+    setClickCount((c) => c + 1);
+    setShowStreakModal(true);
   };
 
   return (
@@ -404,9 +431,9 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           <Text style={[styles.coachMessage, { color: colors.body }]}>{coachMessage}</Text>
         </View>
 
-        {/* Practice Streak Banner (Tapping triggers flame click-burst animation) */}
+        {/* Practice Streak Banner (Tapping triggers flame burst and opens Duolingo modal popup) */}
         <Pressable 
-          onPress={() => setClickCount(c => c + 1)}
+          onPress={handleStreakBannerPress}
           style={[styles.streakBanner, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
         >
           <FlickeringFlame active={streak.current > 0} clickCount={clickCount} />
@@ -489,6 +516,64 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           ))
         )}
       </ScrollView>
+
+      {/* Adaptive Duolingo-Style Streak Modal Popout */}
+      <Modal
+        visible={showStreakModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowStreakModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            <Pressable onPress={() => setShowStreakModal(false)} style={styles.modalCloseBtn}>
+              <Ionicons name="close" size={24} color={colors.title} />
+            </Pressable>
+
+            {/* Interactive large animated flame inside the modal */}
+            <Pressable onPress={() => setModalClickCount((c) => c + 1)} style={styles.modalFlameWrapper}>
+              <FlickeringFlame active={streak.current > 0} clickCount={modalClickCount} size="large" />
+            </Pressable>
+
+            <Text style={styles.modalStreakNum}>{streak.current}</Text>
+            <Text style={styles.modalStreakLabel}>day streak</Text>
+
+            {/* Weekly Checklist Tracker (Duolingo style) */}
+            <View style={[styles.modalCalendarCard, { backgroundColor: colors.bg, borderColor: colors.cardBorder }]}>
+              <View style={styles.modalWeekRow}>
+                {weekDays.map((d, index) => {
+                  const hasActivity = dayHasSessions(d);
+                  const dayLabel = WEEKDAYS_SHORT[index];
+                  
+                  return (
+                    <View key={index} style={styles.modalWeekDayItem}>
+                      <Text style={[styles.modalWeekDayLabel, { color: colors.body }]}>{dayLabel}</Text>
+                      {hasActivity ? (
+                        <View style={styles.checkedCircleOrange}>
+                          <Ionicons name="checkmark" size={12} color="#ffffff" />
+                        </View>
+                      ) : (
+                        <View style={[styles.uncheckedCircle, { borderColor: isDark ? '#464d52' : '#cbd5e1' }]} />
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+              
+              <Text style={[styles.modalExplanation, { color: colors.body }]}>
+                You extended your streak with daily practice! Keep practicing daily to grow your recovery flame.
+              </Text>
+            </View>
+
+            <Pressable 
+              onPress={() => setShowStreakModal(false)} 
+              style={[styles.modalGotItBtn, { backgroundColor: '#ffb020' }]}
+            >
+              <Text style={styles.modalGotItText}>Continue</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -788,5 +873,111 @@ const styles = StyleSheet.create({
   noHistoryText: {
     fontSize: 12.5,
     textAlign: 'center',
+  },
+
+  // Duolingo-style streak modal popout stylesheet classes
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    position: 'relative',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalFlameWrapper: {
+    marginTop: 20,
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: 4,
+    zIndex: 99,
+  },
+  modalStreakNum: {
+    fontSize: 64,
+    fontWeight: '900',
+    textAlign: 'center',
+    color: '#ffb020',
+  },
+  modalStreakLabel: {
+    fontSize: 14,
+    fontWeight: '900',
+    textTransform: 'lowercase',
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.5,
+    color: '#ffb020',
+  },
+  modalCalendarCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginVertical: 20,
+  },
+  modalWeekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  modalWeekDayItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  modalWeekDayLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  checkedCircleOrange: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ffb020',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uncheckedCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+  },
+  modalExplanation: {
+    fontSize: 11.5,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  modalGotItBtn: {
+    paddingVertical: 15,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalGotItText: {
+    color: '#ffffff',
+    fontWeight: '900',
+    fontSize: 14.5,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });
