@@ -16,7 +16,11 @@ import { DEFAULT_ROM_CEILING_DEG, isPastCeiling, PAIN_OPTIONS } from '../safety/
 import { sessionStore } from '../storage/sessionStore';
 import type { Axis, PainLevel, RepMetric, SessionSummary } from '../types';
 
-// 👉 TODO: set this to whichever axis moved MOST in your GyroTest forearm test.
+// VERIFIED on-device (2026-07-16, iPhone, phone strapped screen-up along the
+// forearm, elbow at 90°): during supination/pronation roll sweeps the full range
+// while pitch and yaw wander only ~10–20° — i.e. the forearm rotation is clean
+// and no other joint is contaminating it. Re-check with the Gyro test tab if the
+// strap position or phone model changes.
 const EXERCISE_AXIS: Axis = 'roll';
 
 // TODO(phase-3): comes from the therapist's prescription. One exercise for now.
