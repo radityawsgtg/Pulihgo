@@ -3,15 +3,16 @@
 //
 // Redesigned to match a premium Whoop app dashboard.
 // Incorporates date navigation, animated progress gauges, a flickering streak flame,
-// and a custom interactive morphing fire-to-mascot transition modal.
+// and a custom interactive fire streak video popout modal using expo-av.
 
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal, Image } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps, dayKey } from '../progress/streak';
 import type { SessionSummary } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -209,207 +210,6 @@ function FlickeringFlame({ active, onPressTrigger }: { active: boolean; onPressT
   );
 }
 
-// Special high-fidelity morphing fire mascot component inside the streak modal
-function MorphingFlameMascot({ trigger, theme }: { trigger: boolean; theme: 'dark' | 'light' }) {
-  const rotateAnim = useRef(new Animated.Value(0)).current;      // 0 to 1
-  const translateYAnim = useRef(new Animated.Value(0)).current;  // 0 to -80 to 0
-  const fireOpacity = useRef(new Animated.Value(1)).current;     // 1 to 0
-  const mascotOpacity = useRef(new Animated.Value(0)).current;   // 0 to 1
-  
-  // Idle breathing loops
-  const idleBob = useRef(new Animated.Value(0)).current;
-  const idleScaleY = useRef(new Animated.Value(1)).current;
-  const bgPulse = useRef(new Animated.Value(1)).current;
-
-  // Flicker loops for regular fire
-  const outerScale = useRef(new Animated.Value(1)).current;
-  const middleScale = useRef(new Animated.Value(1)).current;
-
-  const [hasFinishedTransform, setHasFinishedTransform] = useState(false);
-
-  useEffect(() => {
-    // Flamy background heat waves pulsation loop
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bgPulse, { toValue: 1.22, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bgPulse, { toValue: 0.94, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Small flickering loops for the regular fire during preparation
-    const outerFlicker = Animated.loop(
-      Animated.sequence([
-        Animated.timing(outerScale, { toValue: 1.05, duration: 200, useNativeDriver: true }),
-        Animated.timing(outerScale, { toValue: 0.95, duration: 200, useNativeDriver: true }),
-      ])
-    );
-    const middleFlicker = Animated.loop(
-      Animated.sequence([
-        Animated.timing(middleScale, { toValue: 0.92, duration: 150, useNativeDriver: true }),
-        Animated.timing(middleScale, { toValue: 1.08, duration: 150, useNativeDriver: true }),
-      ])
-    );
-    outerFlicker.start();
-    middleFlicker.start();
-
-    return () => {
-      outerFlicker.stop();
-      middleFlicker.stop();
-    };
-  }, []);
-
-  const runTransformAnimation = () => {
-    setHasFinishedTransform(false);
-    
-    // Reset layout transition values
-    rotateAnim.setValue(0);
-    translateYAnim.setValue(0);
-    fireOpacity.setValue(1);
-    mascotOpacity.setValue(0);
-
-    // Stop idle loops
-    idleBob.setValue(0);
-    idleScaleY.setValue(1);
-
-    // Jump-spin choreography sequence
-    Animated.parallel([
-      // A. Jump translation (goes up by 80px and falls down with spring landing)
-      Animated.sequence([
-        Animated.timing(translateYAnim, {
-          toValue: -80,
-          duration: 400,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateYAnim, {
-          toValue: 0,
-          friction: 4.5,
-          tension: 25,
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // B. Rotation (spins 1080 degrees = 3 full spins)
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-
-      // C. Cross-fade (morphs fire to mascot at the peak of the jump)
-      Animated.sequence([
-        Animated.delay(300),
-        Animated.parallel([
-          Animated.timing(fireOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
-          Animated.timing(mascotOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
-        ]),
-      ]),
-    ]).start(() => {
-      // Transformation complete, enter bobbing breathing loop
-      setHasFinishedTransform(true);
-    });
-  };
-
-  useEffect(() => {
-    if (trigger) {
-      runTransformAnimation();
-    }
-  }, [trigger]);
-
-  // Breathing loop after landing
-  useEffect(() => {
-    if (!hasFinishedTransform) return;
-
-    const bobAnim = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(idleBob, { toValue: 4, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(idleScaleY, { toValue: 1.03, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(idleBob, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(idleScaleY, { toValue: 0.97, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        ]),
-      ])
-    );
-    
-    bobAnim.start();
-    return () => bobAnim.stop();
-  }, [hasFinishedTransform]);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '1080deg'],
-  });
-
-  const isDark = theme === 'dark';
-  const colors = {
-    body: isDark ? '#8e9aa0' : '#64748b',
-    title: isDark ? '#ffffff' : '#0b0e11',
-  };
-
-  return (
-    <Pressable onPress={runTransformAnimation} style={styles.animPressContainer}>
-      <View style={styles.mascotAreaContainer}>
-        {/* Flamy Glowing Radial Backgrounds */}
-        <Animated.View style={[
-          styles.flamyBackgroundPulse, 
-          { 
-            transform: [{ scale: bgPulse }],
-            opacity: isDark ? 0.25 : 0.15 
-          }
-        ]} />
-        <Animated.View style={[
-          styles.flamyBackgroundPulseInner, 
-          { 
-            transform: [{ scale: bgPulse }],
-            opacity: isDark ? 0.35 : 0.25 
-          }
-        ]} />
-
-        {/* Morphing Jumping Container */}
-        <Animated.View style={[
-          styles.transformingWrapper,
-          {
-            transform: [
-              { translateY: translateYAnim },
-              { rotate: spin },
-              { translateY: hasFinishedTransform ? idleBob : 0 },
-              { scaleY: hasFinishedTransform ? idleScaleY : 1 }
-            ]
-          }
-        ]}>
-          {/* Layer 1: Regular flickering flame (Fades out) */}
-          <Animated.View style={[styles.modalRegularFireContainer, { opacity: fireOpacity }]}>
-            <Animated.View style={[styles.flameTeardrop, styles.flameOuterLarge, { transform: [{ rotate: '-45deg' }, { scale: outerScale }] }]} />
-            <Animated.View style={[styles.flameTeardrop, styles.flameMiddleLarge, { transform: [{ rotate: '-45deg' }, { scale: middleScale }] }]} />
-            <View style={[styles.flameTeardrop, styles.flameInnerLarge, { transform: [{ rotate: '-45deg' }] }]} />
-          </Animated.View>
-
-          {/* Layer 2: Mascot Flame Character (Fades in) */}
-          <Animated.View style={[styles.modalMascotContainer, { opacity: mascotOpacity }]}>
-            <Image
-              source={require('../../assets/flame_character.png')}
-              style={styles.modalMascotImage}
-              resizeMode="contain"
-            />
-          </Animated.View>
-        </Animated.View>
-      </View>
-      
-      {!hasFinishedTransform && (
-        <Text style={[styles.tapToReplayHint, { color: colors.body }]}>Transforming...</Text>
-      )}
-      {hasFinishedTransform && (
-        <Text style={[styles.tapToReplayHint, { color: colors.body, opacity: 0.7 }]}>
-          <Ionicons name="refresh" size={10} /> Tap character to spin & jump again!
-        </Text>
-      )}
-    </Pressable>
-  );
-}
-
 interface ProgressScreenProps {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -420,6 +220,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const streak = computeStreak(sessions);
   
   const [showStreakModal, setShowStreakModal] = useState(false);
+  const videoRef = useRef<Video>(null);
 
   const [selectedDate, setSelectedDate] = useState<number>(Date.now());
   const selectedKey = dayKey(selectedDate);
@@ -440,6 +241,13 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
     ? daySessions.reduce((sum, s) => sum + s.avgSmoothness, 0) / daySessions.length
     : 0;
   const smoothnessPercent = Math.round(dayAvgSmoothness * 100);
+
+  // Trigger video replay on modal visibility transition
+  useEffect(() => {
+    if (showStreakModal && videoRef.current) {
+      videoRef.current.replayAsync();
+    }
+  }, [showStreakModal]);
 
   const isDark = theme === 'dark';
   const colors = {
@@ -685,7 +493,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
               </View>
               {s.pain === 'stopped' && (
                 <View style={styles.activityPainBadge}>
-                  <Ionicons name="alert-circle" size={14} color="#ff5252" />
+                  <Ionicons name="alert-circle" size={14} color="#ff5252" style={{ marginRight: 4 }} />
                   <Text style={styles.activityPainText}>Stopped due to pain</Text>
                 </View>
               )}
@@ -694,7 +502,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
         )}
       </ScrollView>
 
-      {/* Mascot Streak Modal Popout (Figma style) */}
+      {/* Whoop-Style Streak Modal Popout with Seamless MP4 Video Playback */}
       <Modal
         visible={showStreakModal}
         transparent={true}
@@ -702,27 +510,31 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
         onRequestClose={() => setShowStreakModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          <View style={styles.modalCard}>
             <Pressable onPress={() => setShowStreakModal(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={colors.title} />
+              <Ionicons name="close" size={24} color="#ffffff" />
             </Pressable>
 
-            <Text style={[styles.modalStreakNum, { color: colors.title }]}>{streak.current}</Text>
-            <Text style={[styles.modalStreakLabel, { color: colors.title }]}>
+            <Text style={styles.modalStreakNum}>{streak.current}</Text>
+            <Text style={styles.modalStreakLabel}>
               {streak.current === 1 ? 'day streak' : 'days streak'}
             </Text>
 
-            {/* Morphing transition fire mascot component */}
-            <MorphingFlameMascot trigger={showStreakModal} theme={theme} />
+            {/* Seamless MP4 Video Player */}
+            <View style={styles.modalVideoContainer}>
+              <Video
+                ref={videoRef}
+                source={require('../../assets/Fire Streak Pop.mp4')}
+                style={styles.modalVideo}
+                resizeMode={ResizeMode.CONTAIN}
+                shouldPlay={true}
+                isLooping={true}
+                isMuted={true}
+              />
+            </View>
 
             {/* Weekly Checklist Tracker (Figma style) */}
-            <View style={[
-              styles.modalCalendarCard, 
-              { 
-                backgroundColor: isDark ? '#1c1f22' : '#f8fafc', 
-                borderColor: colors.cardBorder 
-              }
-            ]}>
+            <View style={styles.modalCalendarCard}>
               <View style={styles.modalWeekRow}>
                 {weekDays.map((d, index) => {
                   const hasActivity = dayHasSessions(d);
@@ -730,23 +542,20 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
                   
                   return (
                     <View key={index} style={styles.modalWeekDayItem}>
-                      <Text style={[styles.modalWeekDayLabel, { color: colors.body }]}>{dayLabel}</Text>
+                      <Text style={styles.modalWeekDayLabel}>{dayLabel}</Text>
                       {hasActivity ? (
                         <View style={styles.checkedCircle}>
                           <Ionicons name="checkmark" size={12} color="#0b0e11" />
                         </View>
                       ) : (
-                        <View style={[
-                          styles.uncheckedCircle, 
-                          { borderColor: isDark ? '#464d52' : '#cbd5e1' }
-                        ]} />
+                        <View style={styles.uncheckedCircle} />
                       )}
                     </View>
                   );
                 })}
               </View>
               
-              <Text style={[styles.modalExplanation, { color: colors.body }]}>
+              <Text style={styles.modalExplanation}>
                 A streak counts how many days you've practiced in a row. Keep practicing daily to grow your recovery flame!
               </Text>
             </View>
@@ -1061,7 +870,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Modal Popout styles
+  // Modal Popout styles (configured always black to seamlessly host the video)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -1077,6 +886,8 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     position: 'relative',
+    backgroundColor: '#000000',
+    borderColor: '#1c1f22',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
@@ -1094,6 +905,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
     marginTop: 10,
+    color: '#ffffff',
   },
   modalStreakLabel: {
     fontSize: 14,
@@ -1102,11 +914,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
     letterSpacing: 0.5,
+    color: '#ffffff',
   },
-  modalMascot: {
-    width: 140,
-    height: 140,
-    marginVertical: 16,
+  modalVideoContainer: {
+    width: 220,
+    height: 220,
+    marginVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000000',
+  },
+  modalVideo: {
+    width: 220,
+    height: 220,
+    backgroundColor: '#000000',
   },
   modalCalendarCard: {
     width: '100%',
@@ -1114,6 +935,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
     marginBottom: 20,
+    backgroundColor: '#121417',
+    borderColor: '#1c1f22',
   },
   modalWeekRow: {
     flexDirection: 'row',
@@ -1129,6 +952,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 6,
     textTransform: 'uppercase',
+    color: '#8e9aa0',
   },
   checkedCircle: {
     width: 22,
@@ -1144,12 +968,14 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     borderWidth: 1.5,
     backgroundColor: 'transparent',
+    borderColor: '#464d52',
   },
   modalExplanation: {
     fontSize: 11,
     lineHeight: 16,
     textAlign: 'center',
     marginTop: 8,
+    color: '#8e9aa0',
   },
   modalGotItBtn: {
     backgroundColor: '#00e5ff',
@@ -1164,100 +990,5 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-
-  // Morphing Mascot Styles
-  animPressContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginVertical: 12,
-  },
-  mascotAreaContainer: {
-    width: 200,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  flamyBackgroundPulse: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: '#ff5252',
-    shadowColor: '#ff5252',
-    shadowRadius: 25,
-    shadowOpacity: 1,
-    elevation: 4,
-  },
-  flamyBackgroundPulseInner: {
-    position: 'absolute',
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#ffb020',
-    shadowColor: '#ffb020',
-    shadowRadius: 15,
-    shadowOpacity: 1,
-  },
-  transformingWrapper: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  modalRegularFireContainer: {
-    position: 'absolute',
-    width: 80,
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    bottom: 20,
-  },
-  modalMascotContainer: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalMascotImage: {
-    width: 140,
-    height: 140,
-  },
-  tapToReplayHint: {
-    fontSize: 10,
-    fontWeight: '800',
-    marginTop: 6,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  flameOuterLarge: {
-    width: 44,
-    height: 44,
-    borderTopRightRadius: 22,
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-    backgroundColor: '#ff5252',
-    opacity: 0.85,
-  },
-  flameMiddleLarge: {
-    width: 28,
-    height: 28,
-    borderTopRightRadius: 14,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    backgroundColor: '#ffb020',
-    opacity: 0.9,
-  },
-  flameInnerLarge: {
-    width: 16,
-    height: 16,
-    borderTopRightRadius: 8,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    backgroundColor: '#ffd700',
   },
 });
