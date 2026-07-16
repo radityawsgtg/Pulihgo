@@ -41,10 +41,10 @@ export class RepDetector {
   onRep?: (rep: RepEvent) => void;
 
   constructor(opts: RepDetectorOptions = {}) {
-    // TODO(clinical/tune): 0.45 / 0.18 are placeholder ratios — tune against
+    // TODO(clinical/tune): 0.45 / 0.10 are placeholder ratios — tune against
     // real captures across a range of target ROMs.
     const derivedEnter = opts.targetRomDeg !== undefined ? opts.targetRomDeg * 0.45 : undefined;
-    const derivedExit = opts.targetRomDeg !== undefined ? opts.targetRomDeg * 0.18 : undefined;
+    const derivedExit = opts.targetRomDeg !== undefined ? opts.targetRomDeg * 0.10 : undefined;
     // Fall back to the fixed 40/15 baseline when no targetRomDeg is given,
     // so existing `new RepDetector()` callers (e.g. ExerciseScreen) keep
     // working unchanged.
