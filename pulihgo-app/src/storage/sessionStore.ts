@@ -11,6 +11,7 @@
 
 import { useSyncExternalStore } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { uploadSession } from '../sync/uploadSession';
 import type { SessionSummary } from '../types';
 
 const KEY = 'pulihgo.sessions.v1'; // bump the suffix if SessionSummary ever changes shape
@@ -52,6 +53,10 @@ export const sessionStore = {
     sessions = [s, ...sessions];
     persist();
     emit();
+    // Local save above is already complete and durable — this is a
+    // best-effort extra. uploadSession() never throws, but .catch() is
+    // defense-in-depth so a change there can never take the app down here.
+    uploadSession(s).catch(() => {});
   },
 
   /** The current list, newest first. Treat as READ-ONLY — do not mutate. */
