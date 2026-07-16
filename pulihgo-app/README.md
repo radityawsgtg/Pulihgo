@@ -29,6 +29,14 @@ npm install            # .npmrc already sets legacy-peer-deps
 npx expo start         # scan the QR with Expo Go on your phone
 ```
 
+> **This project targets Expo SDK 54.** Install the **Expo Go** app from the
+> App Store / Play Store — as of writing, the App Store build of Expo Go only
+> supports up to SDK 54 (newer SDKs lag behind in Apple's review queue), so
+> **don't** bump the `expo` package past `~54.x` unless you've confirmed Expo
+> Go's App Store release has caught up. See
+> [`docs/07-getting-started.md`](./docs/07-getting-started.md) if you hit
+> "Project is incompatible with this version of Expo Go".
+
 You'll land on the **Exercise** tab (the MVP loop). The **Gyro test** tab shows
 raw axes — use it to confirm which axis your forearm rotation drives, then set
 `EXERCISE_AXIS` in `src/screens/ExerciseScreen.tsx`.
