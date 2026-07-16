@@ -8,22 +8,51 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #0b0e11;
-  color: #ffffff;
+  background-color: #0b0716; /* Deep dark purple */
+  color: #f3f4f6;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  position: relative;
 }
 
-/* Dashboard Layout */
+/* Background Gradients Swirls */
+.bg-gradient-swirl {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(140px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.top-swirl {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.25) 0%, rgba(147, 51, 234, 0) 70%);
+  top: -100px;
+  right: -50px;
+}
+
+.bottom-swirl {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+  bottom: -200px;
+  left: -100px;
+}
+
+/* Dashboard Container */
 .dashboard-container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 30px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 /* Header Section */
@@ -32,8 +61,8 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid rgba(142, 154, 160, 0.15);
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .header-brand {
@@ -41,79 +70,178 @@ body {
   align-items: center;
 }
 
-.brand-icon {
-  width: 32px;
-  height: 32px;
-  color: #00e5ff;
+.brand-logo-wrapper {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  padding: 7px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: 12px;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
 }
 
-.dashboard-header h1 {
-  font-size: 22px;
+.brand-icon {
+  width: 18px;
+  height: 18px;
+  color: #ffffff;
+}
+
+.brand-name {
+  font-size: 16px;
   font-weight: 900;
-  margin: 0;
   letter-spacing: 0.5px;
 }
 
-.brand-subtitle {
-  font-size: 12px;
-  color: #8e9aa0;
-  margin: 4px 0 0 0;
-  font-weight: 600;
+.brand-divider {
+  color: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
 }
 
-/* Patient Badge */
-.patient-badge {
+.brand-subname {
+  color: #a855f7;
+  font-weight: 800;
+}
+
+/* Pill Navigation */
+.pill-navigation {
+  display: flex;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 30px;
+  padding: 4px;
+  gap: 2px;
+}
+
+.nav-pill-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px 18px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.nav-pill-btn:hover {
+  color: #ffffff;
+}
+
+.nav-pill-btn.active {
+  background-color: #ffffff;
+  color: #0b0716;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Profile / Session Clock */
+.profile-session-area {
   display: flex;
   align-items: center;
-  background-color: #121417;
-  border: 1px solid rgba(142, 154, 160, 0.15);
-  border-radius: 12px;
-  padding: 10px 16px;
+  gap: 16px;
 }
 
-.badge-avatar-icon {
-  width: 20px;
-  height: 20px;
-  color: #8e9aa0;
-  margin-right: 10px;
+.current-clock {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #f3f4f6;
 }
 
-.patient-info {
+.vertical-divider {
+  width: 1px;
+  height: 24px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.user-profile-widget {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-details {
   display: flex;
   flex-direction: column;
-  margin-right: 16px;
+  text-align: right;
 }
 
-.patient-name {
-  font-size: 13px;
+.profile-name {
+  font-size: 12.5px;
   font-weight: 800;
   color: #ffffff;
 }
 
-.patient-diagnosis {
-  font-size: 11px;
+.profile-role {
+  font-size: 10.5px;
   color: #8e9aa0;
   margin-top: 2px;
+  font-weight: 500;
 }
 
-.active-tag {
-  background-color: rgba(0, 230, 118, 0.15);
-  color: #00e676;
-  font-size: 10px;
-  font-weight: 900;
-  padding: 4px 8px;
-  border-radius: 6px;
+.profile-avatar {
+  background-color: rgba(192, 132, 252, 0.15);
+  border: 1px solid rgba(192, 132, 252, 0.3);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sub-header Breadcrumb Section */
+.subheader-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.breadcrumb-trail {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Main Dashboard Grid */
+.crumb-inactive {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.crumb-separator {
+  color: rgba(255, 255, 255, 0.2);
+  margin: 0 6px;
+}
+
+.crumb-active {
+  color: #a855f7;
+}
+
+.calendar-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dashboard-title {
+  font-size: 32px;
+  font-weight: 900;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.5px;
+}
+
+/* Dashboard Grid */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 1fr 400px;
   gap: 24px;
-  flex: 1;
+  margin-bottom: 24px;
 }
 
 /* Columns */
@@ -129,55 +257,62 @@ body {
   gap: 24px;
 }
 
-/* Cards System */
+/* Glassmorphism Cards System */
+.glassmorphic {
+  background: rgba(24, 18, 38, 0.55);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+}
+
 .card {
-  background-color: #121417;
-  border: 1px solid rgba(142, 154, 160, 0.15);
-  border-radius: 16px;
-  padding: 20px;
+  padding: 24px;
   box-sizing: border-box;
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  margin-bottom: 18px;
   position: relative;
+}
+
+.header-title-wrapper {
+  display: flex;
+  align-items: center;
 }
 
 .card-header.border-bottom {
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(142, 154, 160, 0.1);
-  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 18px;
 }
 
 .card-header-icon {
   width: 20px;
   height: 20px;
-  color: #00e5ff;
+  color: #c084fc;
   margin-right: 10px;
 }
 
 .card-header h2 {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 900;
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .card-subtitle {
-  font-size: 11px;
-  color: #8e9aa0;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
   margin: 4px 0 0 0;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .demo-badge {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
   background-color: rgba(255, 176, 32, 0.15);
   color: #ffb020;
   font-size: 8px;
@@ -187,7 +322,57 @@ body {
   letter-spacing: 0.5px;
 }
 
-/* Prescription Form */
+/* KPI Cards Row */
+.kpi-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.kpi-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.kpi-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 900;
+  margin: 6px 0;
+  letter-spacing: -0.5px;
+}
+
+.kpi-change {
+  font-size: 9.5px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.text-green { color: #00e676; }
+.text-danger { color: #ff5252; }
+
+.kpi-sparkline {
+  width: 100%;
+  height: 36px;
+  margin-top: auto;
+}
+
+/* Prescription Form Control Panel */
 .prescription-form {
   display: flex;
   flex-direction: column;
@@ -210,57 +395,52 @@ body {
 }
 
 .prescription-form label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  color: #8e9aa0;
+  color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .prescription-form input,
 .prescription-form select {
-  background-color: #0b0e11;
-  border: 1px solid rgba(142, 154, 160, 0.2);
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 10px 14px;
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
 .prescription-form input:focus,
 .prescription-form select:focus {
-  border-color: #00e5ff;
-}
-
-.input-hint {
-  font-size: 10px;
-  color: #8e9aa0;
-  margin-top: -8px;
+  border-color: #a855f7;
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 .save-btn {
-  background-color: #00e5ff;
-  color: #0b0e11;
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  color: #ffffff;
   border: none;
   border-radius: 10px;
   padding: 12px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 900;
   cursor: pointer;
   transition: opacity 0.2s;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-top: 8px;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.2);
 }
 
 .save-btn:hover {
   opacity: 0.9;
 }
 
-/* Form Alert & Notification */
 .error-alert {
   display: flex;
   align-items: center;
@@ -288,71 +468,7 @@ body {
   margin-top: 14px;
 }
 
-/* Metrics Grid Section */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.metric-box {
-  background-color: #121417;
-  border: 1px solid rgba(142, 154, 160, 0.12);
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.box-icon {
-  width: 20px;
-  height: 20px;
-  padding: 8px;
-  border-radius: 10px;
-}
-
-.bg-dose { border-color: rgba(160, 82, 255, 0.2); }
-.color-dose { background-color: rgba(160, 82, 255, 0.1); color: #a052ff; }
-
-.bg-adherence { border-color: rgba(0, 230, 118, 0.2); }
-.color-adherence { background-color: rgba(0, 230, 118, 0.1); color: #00e676; }
-
-.bg-avg { border-color: rgba(0, 229, 255, 0.2); }
-.color-avg { background-color: rgba(0, 229, 255, 0.1); color: #00e5ff; }
-
-.bg-alerts { border-color: rgba(255, 82, 82, 0.2); }
-.color-alerts { background-color: rgba(255, 82, 82, 0.1); color: #ff5252; }
-
-.box-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.box-label {
-  font-size: 9px;
-  font-weight: 900;
-  color: #8e9aa0;
-  letter-spacing: 0.5px;
-}
-
-.box-value {
-  font-size: 16px;
-  font-weight: 900;
-  margin: 4px 0;
-}
-
-.box-sub {
-  font-size: 9.5px;
-  color: #8e9aa0;
-  font-weight: 500;
-}
-
-.color-danger {
-  color: #ff5252;
-}
-
-/* Charts Card Container */
+/* Charts Card Layout */
 .chart-card-container {
   display: flex;
   flex-direction: column;
@@ -375,7 +491,7 @@ body {
   align-items: center;
   font-size: 10px;
   font-weight: 700;
-  color: #8e9aa0;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .dot {
@@ -404,12 +520,11 @@ body {
 }
 
 .table-card .card-header {
-  padding: 20px 20px 14px 20px;
+  padding: 24px 24px 14px 24px;
 }
 
 .table-responsive {
   width: 100%;
-  overflow-x: auto;
 }
 
 .history-table {
@@ -419,21 +534,21 @@ body {
 }
 
 .history-table th {
-  background-color: rgba(142, 154, 160, 0.05);
-  padding: 12px 20px;
-  font-size: 10px;
+  background-color: rgba(255, 255, 255, 0.02);
+  padding: 14px 24px;
+  font-size: 9.5px;
   font-weight: 900;
-  color: #8e9aa0;
+  color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid rgba(142, 154, 160, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .history-table td {
-  padding: 14px 20px;
+  padding: 14px 24px;
   font-size: 12.5px;
-  border-bottom: 1px solid rgba(142, 154, 160, 0.08);
-  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-weight: 600;
 }
 
 .history-table tr:last-child td {
@@ -442,12 +557,6 @@ body {
 
 .cell-datetime {
   font-weight: 700;
-  display: flex;
-  align-items: center;
-}
-
-.color-icon {
-  color: #8e9aa0;
 }
 
 .font-bold {
@@ -468,8 +577,8 @@ body {
 
 /* Badges styling */
 .badge {
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 9.5px;
+  font-weight: 900;
   padding: 4px 8px;
   border-radius: 6px;
   display: inline-block;
@@ -498,11 +607,86 @@ body {
 
 /* Highlight rows for safety warnings */
 .row-danger {
-  background-color: rgba(255, 82, 82, 0.03);
+  background-color: rgba(255, 82, 82, 0.02);
 }
 
 .row-warning {
-  background-color: rgba(255, 176, 32, 0.02);
+  background-color: rgba(255, 176, 32, 0.015);
+}
+
+/* Download Reports Resource (Media Card look) */
+.download-report-card {
+  position: relative;
+  overflow: hidden;
+  height: 180px;
+  padding: 0;
+  background: linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%);
+  display: flex;
+  align-items: center;
+}
+
+/* Abstract wave decorations inside download card */
+.download-report-card::after {
+  content: '';
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, rgba(168, 85, 247, 0) 70%);
+  bottom: -100px;
+  right: -50px;
+  pointer-events: none;
+}
+
+.report-card-overlay {
+  padding: 24px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.report-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+  max-width: 85%;
+}
+
+.report-card-content h3 {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.report-card-content p {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 10px 0;
+  line-height: 15px;
+}
+
+.download-pill-btn {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 8px 18px;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 0.25s ease;
+}
+
+.download-pill-btn:hover {
+  background-color: #ffffff;
+  color: #0b0716;
 }
 
 /* Footer Disclaimer */
@@ -510,13 +694,13 @@ body {
   margin-top: 30px;
   padding: 16px 0;
   text-align: center;
-  border-top: 1px solid rgba(142, 154, 160, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .dashboard-footer p {
   margin: 0;
   font-size: 10.5px;
-  color: #8e9aa0;
+  color: rgba(255, 255, 255, 0.35);
   font-weight: 700;
   letter-spacing: 0.5px;
 }
