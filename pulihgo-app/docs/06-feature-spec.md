@@ -248,6 +248,30 @@ app pulls its plan (`GET /prescriptions`). The therapist is the eligibility filt
 they decide the app is appropriate for this specific patient.
 **Owner:** `dashboard` + `api`
 
+**Implementation note — wiring the mobile app to a real prescription (current
+gap):** `RepDetector` (`src/metrics/repDetector.ts`) already accepts an optional
+`targetRomDeg` and derives its rep-detection thresholds from it
+(`enterDeg = targetRomDeg * 0.45`, `exitDeg = targetRomDeg * 0.10` — both
+placeholder ratios, `TODO(clinical/tune)`), instead of a fixed 40°/15° for every
+patient. This exists because a severe-stroke patient's realistic ROM can be far
+below what a fixed threshold assumes, and a fixed threshold would just never
+register their reps.
+
+Right now `src/screens/ExerciseScreen.tsx` passes a **hardcoded**
+`DUMMY_TARGET_ROM_DEG = 70` — there is no prescription to pull yet. Once
+`GET /prescriptions` exists, that constant gets replaced by the value from the
+patient's active prescription for this exercise. Two things still needed for that
+to be real, not just wired:
+1. **Mobile:** fetch/cache the active prescription, read its target ROM, pass it
+   into `new RepDetector({ targetRomDeg })` instead of the dummy constant.
+2. **Schema gap:** the `PRESCRIPTION` table in
+   [`03-database.md`](./03-database.md) does **not** currently have a
+   `target_rom_deg` column — only `EXERCISE.target_rom_deg` exists, which is one
+   generic value per exercise, not per patient. That defeats the point of
+   per-patient severity-based thresholds. `PRESCRIPTION` needs its own
+   (nullable) `target_rom_deg` that overrides `EXERCISE.target_rom_deg` when a
+   therapist sets one — see the note in `03-database.md`.
+
 ## 21. Therapist dashboard
 **What:** Remote monitoring of every patient.
 **How it works:** A React web app showing, per patient: **adherence** (did they

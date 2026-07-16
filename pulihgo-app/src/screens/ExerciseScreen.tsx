@@ -31,6 +31,12 @@ const PAIN_LABEL: Record<PainLevel, string> = {
   unknown: 'Not asked',
 };
 
+// 👉 TODO(therapist-setup): hardcoded for now so the target-ROM threshold
+// scaling can be tuned on a real phone. This should come from a therapist
+// prescription / setup screen (ExerciseConfig.targetRomDeg in ../types)
+// once that exists.
+const DUMMY_TARGET_ROM_DEG = 70;
+
 export default function ExerciseScreen() {
   const { angles, granted, calibrate } = useCalibratedAngle(SAMPLE_MS);
   const [reps, setReps] = useState(0);
@@ -38,7 +44,7 @@ export default function ExerciseScreen() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
   const [justSaved, setJustSaved] = useState<PainLevel | null>(null);
-  const detector = useRef(new RepDetector());
+  const detector = useRef(new RepDetector({ targetRomDeg: DUMMY_TARGET_ROM_DEG }));
   const repsRef = useRef<RepMetric[]>([]);
 
   const value = angles[EXERCISE_AXIS];

@@ -112,6 +112,17 @@ erDiagram
   comparison is your validation story.
 - **`EXERCISE.primary_axis`** tells the mobile app which fused angle (pitch/roll/
   yaw) to score for that movement. Rotational exercises are the point.
+- **`PRESCRIPTION` is missing a per-patient `target_rom_deg` (known gap, not yet
+  built).** Only `EXERCISE.target_rom_deg` exists today, which is one fixed value
+  per exercise for every patient. But rep detection on mobile
+  (`src/metrics/repDetector.ts`) now derives its thresholds from a
+  *patient-specific* target ROM, because a severe-stroke patient's realistic ROM
+  can be much smaller than a mild patient's doing the same exercise — a single
+  exercise-level default can't represent that. Before `GET /prescriptions` is
+  built for real, add a nullable `target_rom_deg INTEGER` to `PRESCRIPTION` that
+  overrides `EXERCISE.target_rom_deg` when the therapist sets one for that
+  patient. See the implementation note under feature 20 in
+  [`06-feature-spec.md`](./06-feature-spec.md).
 - **String ULID PKs** are offline-mergeable and URL-safe.
 
 ---
