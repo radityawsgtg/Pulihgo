@@ -342,6 +342,17 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
     }
   }
 
+  let strainColor = '#8e9aa0'; // default gray if no sessions
+  if (hasSelectedPractice) {
+    if (rehabStrain < 15.0) {
+      strainColor = '#00e676'; // SAFE (green)
+    } else if (rehabStrain < 18.0) {
+      strainColor = '#ffb020'; // LOAD (orange)
+    } else {
+      strainColor = '#ff5252'; // HALT (red)
+    }
+  }
+
   const weekDays = getWeekDays(selectedDate);
 
   const shiftDate = (days: number) => {
@@ -462,7 +473,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           {/* Top section: Score and Header */}
           <View style={styles.coachTopSection}>
             <View style={styles.strainScoreBox}>
-              <Text style={styles.strainScoreVal}>{rehabStrain.toFixed(1)}</Text>
+              <Text style={[styles.strainScoreVal, { color: strainColor }]}>{rehabStrain.toFixed(1)}</Text>
               <Text style={styles.strainScoreLbl}>REHAB STRAIN</Text>
             </View>
             
@@ -641,7 +652,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
               <Ionicons name="close" size={24} color={colors.title} />
             </Pressable>
 
-            <Ionicons name="information-circle-outline" size={48} color="#00e5ff" style={{ marginTop: 24, marginBottom: 8 }} />
+            <Ionicons name="information-circle-outline" size={48} color={strainColor === '#8e9aa0' ? '#00e5ff' : strainColor} style={{ marginTop: 24, marginBottom: 8 }} />
             <Text style={[styles.explainModalTitle, { color: colors.title }]}>Rehab Strain</Text>
             <Text style={[styles.explainModalSub, { color: colors.body }]}>
               Rehab Strain scores the cumulative physical load, coordination stability, and safety compliance of your forearm rotations on a scale from 0.0 to 21.0.
@@ -681,7 +692,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
 
             <Pressable 
               onPress={() => setShowStrainModal(false)} 
-              style={[styles.modalGotItBtn, { backgroundColor: '#00e5ff' }]}
+              style={[styles.modalGotItBtn, { backgroundColor: strainColor === '#8e9aa0' ? '#00e5ff' : strainColor }]}
             >
               <Text style={styles.modalGotItText}>Got it</Text>
             </Pressable>
