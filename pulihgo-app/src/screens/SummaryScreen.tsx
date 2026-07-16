@@ -149,6 +149,89 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
     unknown: 'Not asked',
   };
 
+  // Whoop-style comparison bar calculation
+  let showBar = false;
+  let barSafeWidth = 0;
+  let barWarnWidth = 0;
+  let barMarkerPosition = 0;
+  let barValueText = "";
+  let barLabelText = "";
+  let barFooterLeft = "";
+  let barFooterRight = "";
+  let barFooterMarker = "";
+  let showWarningStats = false;
+  let statVal1 = "";
+  let statVal2 = "";
+  let statVal3 = "";
+  let statLbl1 = "";
+  let statLbl2 = "";
+  let statLbl3 = "";
+  let statVal1Color = colors.title;
+  let statVal3Color = colors.title;
+
+  if (last) {
+    if (last.peakRomDeg > 90) {
+      showBar = true;
+      const peak = last.peakRomDeg;
+      // safe up to 90
+      barSafeWidth = (Math.min(peak, 90) / 120) * 100;
+      barWarnWidth = peak > 90 ? ((peak - 90) / 120) * 100 : 0;
+      barMarkerPosition = 75; // (90 / 120) * 100
+      barValueText = `${peak.toFixed(0)}° / 90° limit`;
+      barLabelText = "PEAK ROTATION RANGE";
+      barFooterLeft = "0°";
+      barFooterMarker = "90° LIMIT";
+      barFooterRight = "120°";
+      
+      showWarningStats = true;
+      statVal1 = `${peak.toFixed(0)}°`;
+      statVal2 = "90°";
+      statVal3 = `+${(peak - 90).toFixed(0)}°`;
+      statLbl1 = "PEAK ROTATION";
+      statLbl2 = "SAFE LIMIT";
+      statLbl3 = "OVER LIMIT";
+      statVal1Color = "#ff5252"; // red
+      statVal3Color = "#ffb020"; // orange
+    } else if (last.pain === 'stopped') {
+      showBar = true;
+      barSafeWidth = 0;
+      barWarnWidth = 100; // full red bar
+      barValueText = "SAFETY HALT TRIGGERED";
+      barLabelText = "DISCOMFORT LEVEL";
+      barFooterLeft = "COMFORTABLE";
+      barFooterRight = "MAX DISCOMFORT";
+      
+      showWarningStats = true;
+      statVal1 = "HALT";
+      statVal2 = `${last.reps.length}`;
+      statVal3 = `${last.peakRomDeg.toFixed(0)}°`;
+      statLbl1 = "SAFETY STATUS";
+      statLbl2 = "REPS COMPLETED";
+      statLbl3 = "PEAK ANGLE";
+      statVal1Color = "#ff5252";
+    } else {
+      // Show smoothness progress bar
+      showBar = true;
+      barSafeWidth = smoothnessPercent;
+      barWarnWidth = 0;
+      barValueText = `${smoothnessPercent}%`;
+      barLabelText = "MOVEMENT SMOOTHNESS";
+      barFooterLeft = "0%";
+      barFooterMarker = "80% TARGET";
+      barMarkerPosition = 80;
+      barFooterRight = "100%";
+      
+      showWarningStats = true;
+      statVal1 = `${last.reps.length}`;
+      statVal2 = `${last.peakRomDeg.toFixed(0)}°`;
+      statVal3 = `${smoothnessPercent}%`;
+      statLbl1 = "TOTAL REPS";
+      statLbl2 = "PEAK ROM";
+      statLbl3 = "SMOOTHNESS";
+      statVal3Color = smoothnessPercent >= 80 ? '#00e676' : (smoothnessPercent >= 60 ? '#00e5ff' : '#ffb020');
+    }
+  }
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scroll}>
       {/* Header */}
@@ -200,24 +283,84 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
       </View>
 
       {/* Upgraded Clinical Coach Card */}
-      <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder, borderLeftColor: feedbackColor }]}>
+      <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
         <View style={styles.coachHeader}>
           <Ionicons name={feedbackIcon as any} size={20} color={feedbackColor} style={styles.coachIcon} />
           <Text style={[styles.coachTitle, { color: colors.title }]}>{feedbackTitle}</Text>
         </View>
 
-        <View style={styles.reportSection}>
-          <Text style={[styles.reportSectionLabel, { color: colors.body }]}>CLINICAL ASSESSMENT</Text>
+        {/* Dynamic Comparison Bar (Whoop/Sleep Ranges Style) */}
+        {showBar && (
+          <View style={styles.warningBarContainer}>
+            <View style={styles.warningBarHeader}>
+              <Text style={[styles.warningBarLabel, { color: colors.body }]}>{barLabelText}</Text>
+              <Text style={[styles.warningBarValue, { color: feedbackColor }]}>{barValueText}</Text>
+            </View>
+            
+            <View style={[styles.warningBarTrack, { backgroundColor: isDark ? '#1c1f22' : '#e2e8f0' }]}>
+              {barSafeWidth > 0 && (
+                <View style={[styles.warningBarSafe, { width: `${barSafeWidth}%`, backgroundColor: last.avgSmoothness < 0.6 ? '#ffb020' : '#00e676' }]} />
+              )}
+              {barWarnWidth > 0 && (
+                <View style={[styles.warningBarExceeded, { width: `${barWarnWidth}%` }]} />
+              )}
+              {barMarkerPosition > 0 && (
+                <View style={[styles.warningBarLimitMarker, { left: `${barMarkerPosition}%` }]} />
+              )}
+            </View>
+            
+            <View style={styles.warningBarFooter}>
+              <Text style={[styles.warningBarFooterText, { color: colors.body }]}>{barFooterLeft}</Text>
+              {barFooterMarker ? (
+                <Text style={[styles.warningBarFooterText, { color: feedbackColor, textAlign: 'center', fontWeight: '800' }]}>{barFooterMarker}</Text>
+              ) : null}
+              <Text style={[styles.warningBarFooterText, { color: colors.body, textAlign: 'right' }]}>{barFooterRight}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Dynamic Summary Stats Grid (Whoop Stats Style) */}
+        {showWarningStats && (
+          <View style={[styles.warningStatsGrid, { borderColor: colors.borderStyle }]}>
+            <View style={styles.warningStatCol}>
+              <Text style={[styles.warningStatVal, { color: statVal1Color }]}>{statVal1}</Text>
+              <Text style={[styles.warningStatLbl, { color: colors.body }]}>{statLbl1}</Text>
+            </View>
+            <View style={[styles.warningStatDivider, { backgroundColor: colors.borderStyle }]} />
+            <View style={styles.warningStatCol}>
+              <Text style={[styles.warningStatVal, { color: colors.title }]}>{statVal2}</Text>
+              <Text style={[styles.warningStatLbl, { color: colors.body }]}>{statLbl2}</Text>
+            </View>
+            <View style={[styles.warningStatDivider, { backgroundColor: colors.borderStyle }]} />
+            <View style={styles.warningStatCol}>
+              <Text style={[styles.warningStatVal, { color: statVal3Color }]}>{statVal3}</Text>
+              <Text style={[styles.warningStatLbl, { color: colors.body }]}>{statLbl3}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Structured Medical Sections */}
+        <View style={styles.insightSection}>
+          <View style={styles.insightSectionHeader}>
+            <Ionicons name="pulse" size={14} color={feedbackColor} style={{ marginRight: 6 }} />
+            <Text style={[styles.reportSectionLabel, { color: colors.body }]}>CLINICAL ASSESSMENT</Text>
+          </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{assessment}</Text>
         </View>
 
-        <View style={styles.reportSection}>
-          <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEUROLOGICAL IMPACT</Text>
+        <View style={styles.insightSection}>
+          <View style={styles.insightSectionHeader}>
+            <Ionicons name="git-network-outline" size={14} color={feedbackColor} style={{ marginRight: 6 }} />
+            <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEUROLOGICAL IMPACT</Text>
+          </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{neuroImpact}</Text>
         </View>
 
-        <View style={styles.reportSection}>
-          <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEXT PRACTICE CUE</Text>
+        <View style={styles.insightSection}>
+          <View style={styles.insightSectionHeader}>
+            <Ionicons name="flag-outline" size={14} color="#00e5ff" style={{ marginRight: 6 }} />
+            <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEXT PRACTICE CUE</Text>
+          </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{nextCue}</Text>
         </View>
       </View>
@@ -334,35 +477,113 @@ const styles = StyleSheet.create({
   },
 
   coachCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 24,
-    borderLeftWidth: 4,
     borderWidth: 1,
   },
   coachHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 16,
   },
   coachIcon: { marginRight: 8 },
   coachTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
   },
-  coachMessage: {
-    fontSize: 12.5,
-    lineHeight: 18,
+  
+  warningBarContainer: {
+    marginBottom: 20,
+    width: '100%',
   },
-
-  reportSection: {
-    marginTop: 14,
+  warningBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  warningBarLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  warningBarValue: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  warningBarTrack: {
+    height: 10,
+    width: '100%',
+    borderRadius: 5,
+    flexDirection: 'row',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  warningBarSafe: {
+    height: '100%',
+  },
+  warningBarExceeded: {
+    height: '100%',
+    backgroundColor: '#ff5252',
+  },
+  warningBarLimitMarker: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: '#ffffff',
+  },
+  warningBarFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  warningBarFooterText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    flex: 1,
+  },
+  
+  warningStatsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    marginBottom: 20,
+  },
+  warningStatCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  warningStatVal: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  warningStatLbl: {
+    fontSize: 8,
+    fontWeight: '800',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  warningStatDivider: {
+    width: 1,
+    height: '100%',
+  },
+  
+  insightSection: {
+    marginBottom: 16,
+  },
+  insightSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   reportSectionLabel: {
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
-    marginBottom: 4,
   },
   reportSectionText: {
     fontSize: 12.5,
