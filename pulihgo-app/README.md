@@ -61,11 +61,12 @@ raw axes — use it to confirm which axis your forearm rotation drives, then set
 
 ```
 pulihgo-app/
-├── App.tsx                 # entry — tabs: Exercise / Gyro test / Summary
+├── App.tsx                 # entry — tabs: Exercise / Gyro test / Progress / Summary
 ├── src/
 │   ├── types.ts            # shared types (single source of truth)
 │   ├── sensors/            # ✅ angle reading + calibration (Radit)
 │   ├── metrics/            # rep detection, ROM, smoothness (Pradipta)
+│   ├── progress/           # streak + adherence metrics, local only (Radit)
 │   ├── safety/             # ROM ceiling + pain check (Sulthan)
 │   ├── storage/            # local session storage (Sulthan)
 │   └── screens/            # the UI screens

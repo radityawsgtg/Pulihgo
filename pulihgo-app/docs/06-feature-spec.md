@@ -186,11 +186,20 @@ exercise once we've confirmed a single sensor measures it validly, or we pair it
 a stabilization instruction (keep the upper segment still).
 **Owner:** `mobile`
 
-## 15. Patient progress view
-**What:** Let the patient see their own improvement.
-**How it works:** A simple chart of ROM/reps over time on the phone. This directly
-targets **self-efficacy** — the research shows visible progress raises a survivor's
-confidence, which itself improves recovery.
+## 15. Patient progress view (+ practice streak)
+**What:** Let the patient see their own improvement, and a streak that rewards showing up.
+**How it works:** A simple chart of ROM/reps over time on the phone, plus a **streak**
+= consecutive calendar days with at least one session. All computed on-device from
+saved sessions (`src/progress/streak.ts`) — **no account, no cloud, no API**. This
+directly targets **self-efficacy** — the research shows visible progress raises a
+survivor's confidence, which itself improves recovery [C1].
+**Safety rule (guardrail 3):** the streak counts *days practised*, never reps and
+never angle — and a session the patient ended with **"stopped" for pain still holds
+the streak**. Otherwise the streak becomes a reason to push through pain, which
+inverts the safety model. Not practising *yet* today doesn't break the run either;
+the day isn't over.
+**Depends on:** feature 12 persisting sessions across restarts — a streak that resets
+on reload is worse than no streak.
 **Owner:** `mobile`
 
 ## 16. Practice reminders / scheduling
