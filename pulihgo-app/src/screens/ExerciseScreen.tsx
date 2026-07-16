@@ -29,37 +29,6 @@ const PAIN_LABEL: Record<PainLevel, string> = {
 
 const DUMMY_TARGET_ROM_DEG = 70;
 
-// 👉 TODO(therapist-setup): same as above — hardcoded until it comes from
-// ExerciseConfig.romCeilingDeg. Kept separate from safety.ts's
-// DEFAULT_ROM_CEILING_DEG (that one drives the existing real-time "past safe
-// range" warning off the LIVE angle; this one drives the target/ceiling
-// progress cue below, ALSO off the LIVE angle — both need to react while the
-// patient is mid-movement, not after the fact). Invariant: must stay
-// greater than DUMMY_TARGET_ROM_DEG — the ceiling is the hard stop, the
-// target is what we nudge toward, never past.
-const DUMMY_CEILING_ROM_DEG = 90;
-
-type CueTone = 'push' | 'positive' | 'stop';
-
-/**
- * Progress cue based on the LIVE angle right now (not peak ROM): peak is
- * only final once a rep completes (limb back near neutral), which would make
- * this cue land after the movement is already over — too late to be useful
- * as real-time feedback, and too late as a safety cue for the ceiling case.
- * Pass Math.abs(value) in so this works the same for both directions
- * (supination and pronation).
- *  - below target       -> push the patient a bit further
- *  - target..ceiling     -> positive, and the push turns off (never nudge
- *                           past the target once it's reached)
- *  - at/past ceiling     -> neutral stop message — this is a safety limit,
- *                           NOT a reward, so the tone must not read as praise
- */
-function romCue(liveDeg: number, targetDeg: number, ceilingDeg: number): { text: string; tone: CueTone } {
-  if (liveDeg >= ceilingDeg) return { text: 'Cukup — jangan lebih', tone: 'stop' };
-  if (liveDeg >= targetDeg) return { text: 'Bagus! Target tercapai', tone: 'positive' };
-  return { text: 'Ayo, sedikit lagi', tone: 'push' };
-}
-
 interface ExerciseScreenProps {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -139,6 +108,33 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
   };
 
   const past = isPastCeiling(value);
+  const absAngle = Math.abs(value);
+  const romPercent = Math.min(100, Math.round((absAngle / DUMMY_TARGET_ROM_DEG) * 100));
+
+  // Determine colors and messages dynamically based on safety and metrics
+  let gaugeColor = "#00e5ff"; // default cyan
+  let feedbackMessage = "Rotate your forearm slowly and with control.";
+  let feedbackSub = `Aim for your target ROM of ${DUMMY_TARGET_ROM_DEG}°`;
+
+  if (past) {
+    gaugeColor = "#ff5252"; // Warning Red
+    feedbackMessage = "⚠️ SLOW DOWN & RETURN";
+    feedbackSub = "Exceeded safe range limit of ±90°";
+  } else if (absAngle >= DUMMY_TARGET_ROM_DEG) {
+    gaugeColor = "#00e676"; // Success Green
+    feedbackMessage = "TARGET HIT!";
+    feedbackSub = "Now rotate slowly back to the starting point.";
+  } else if (absAngle > 10) {
+    feedbackMessage = "Good rotation, keep going...";
+    feedbackSub = `Push toward the ${DUMMY_TARGET_ROM_DEG}° target ring`;
+  }
+
+  // SVG math
+  const gaugeSize = 190;
+  const gaugeStroke = 10;
+  const radius = (gaugeSize - gaugeStroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (romPercent / 100) * circumference;
 
   if (granted === false) {
     return (
@@ -159,20 +155,20 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
           <Ionicons name="heart-circle-outline" size={54} color="#00e5ff" style={{ marginBottom: 12, alignSelf: 'center' }} />
           <Text style={[styles.questionTitle, { color: colors.title }]}>How did that feel?</Text>
           <Text style={[styles.questionSub, { color: colors.body }]}>Please report any joint pain experienced during forearm rotation.</Text>
-
+          
           {PAIN_OPTIONS.filter((p) => p !== 'stopped').map((p) => (
             <Pressable key={p} style={[styles.painBtn, { backgroundColor: isDark ? '#1c1f22' : '#f8fafc', borderColor: colors.cardBorder }]} onPress={() => save(p)}>
               <View style={styles.painBtnContent}>
                 <Text style={[styles.painBtnText, { color: colors.title }]}>{PAIN_LABEL[p]}</Text>
-                <Ionicons
-                  name={p === 'none' ? 'shield-checkmark-outline' : 'warning-outline'}
-                  size={20}
-                  color={p === 'none' ? '#00e676' : '#ffb020'}
+                <Ionicons 
+                  name={p === 'none' ? 'shield-checkmark-outline' : 'warning-outline'} 
+                  size={20} 
+                  color={p === 'none' ? '#00e676' : '#ffb020'} 
                 />
               </View>
             </Pressable>
           ))}
-
+          
           <Pressable style={styles.btnGhost} onPress={() => setAsking(false)}>
             <Text style={[styles.btnGhostText, { color: colors.body }]}>Return to Session</Text>
           </Pressable>
@@ -182,20 +178,7 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
   }
 
   return (
-    <View style={styles.c}>
-      <Text style={styles.title}>Supination / Pronation</Text>
-      <Text style={styles.axis}>measuring: {EXERCISE_AXIS}</Text>
-
-      <Text style={styles.big}>{value.toFixed(0)}°</Text>
-      <Text style={[styles.cap, past && styles.capWarn]}>
-        {past ? '⚠️ Slow down — past safe range' : `safe range ±${DEFAULT_ROM_CEILING_DEG}°`}
-      </Text>
-
-      <View style={styles.stats}>
-        <Stat label="Reps" value={`${reps}`} />
-        <Stat label="Peak ROM" value={`${peak.toFixed(0)}°`} />
-      </View>
-
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {running ? (
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Active Header */}
@@ -286,12 +269,12 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
               <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={14} color={colors.title} />
             </Pressable>
           </View>
-
+          
           <View style={[styles.onboardingCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
             <Ionicons name="shield-checkmark" size={40} color="#00e5ff" style={styles.onboardIcon} />
             <Text style={[styles.onboardTitle, { color: colors.title }]}>Ready to Practice?</Text>
             <Text style={[styles.onboardSub, { color: colors.body }]}>Please follow the guidelines to ensure safety and accurate measurements:</Text>
-
+            
             <View style={styles.step}>
               <View style={[styles.stepNum, { backgroundColor: isDark ? '#1c1f22' : '#f1f5f9' }]}>
                 <Text style={styles.stepNumText}>1</Text>
@@ -315,22 +298,22 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
               <Ionicons name="options" size={20} color="#0b0e11" style={{ marginRight: 8 }} />
               <Text style={styles.btnStartText}>Calibrate & Start</Text>
             </Pressable>
-
+            
             <Text style={[styles.onboardHint, { color: colors.body }]}>
               Tapping starts session calibration. This sets your current position as 0° (neutral).
             </Text>
           </View>
-
+          
           {justSaved && (
             <View style={[styles.savedBanner, justSaved === 'stopped' && styles.savedBannerWarn]}>
-              <Ionicons
-                name={justSaved === 'stopped' ? 'alert-circle' : 'checkmark-circle'}
-                size={20}
-                color={justSaved === 'stopped' ? '#ff5252' : '#00e676'}
+              <Ionicons 
+                name={justSaved === 'stopped' ? 'alert-circle' : 'checkmark-circle'} 
+                size={20} 
+                color={justSaved === 'stopped' ? '#ff5252' : '#00e676'} 
                 style={{ marginRight: 8 }}
               />
               <Text style={[styles.savedText, justSaved === 'stopped' && { color: '#ff5252' }]}>
-                {justSaved === 'stopped'
+                {justSaved === 'stopped' 
                   ? 'Session saved and flagged for joint discomfort.'
                   : `Session saved successfully (${PAIN_LABEL[justSaved].toLowerCase()}).`}
               </Text>
@@ -343,18 +326,129 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
 }
 
 const styles = StyleSheet.create({
-  c: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { color: '#12a5b8', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
-  axis: { color: '#6b8891', textAlign: 'center', marginBottom: 10 },
-  big: { color: '#fff', fontSize: 72, fontWeight: 'bold', textAlign: 'center' },
-  cap: { color: '#7fb8c4', textAlign: 'center', marginBottom: 24 },
-  capWarn: { color: '#ffb020', fontWeight: 'bold' },
-  stats: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 30 },
-  stat: { alignItems: 'center' },
-  statV: { color: '#fff', fontSize: 34, fontWeight: 'bold' },
-  statL: { color: '#9fb3ba', fontSize: 13 },
-  btn: {
-    backgroundColor: '#12a5b8',
+  container: { flex: 1 },
+  scroll: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 40 },
+  
+  permissionContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  warnText: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
+  warnSubText: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
+
+  activeHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    width: '100%',
+  },
+  activeHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    position: 'relative',
+  },
+  activeLabel: {
+    color: '#00e5ff',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  exerciseName: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  themeBtn: {
+    position: 'absolute',
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  gaugeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 16,
+  },
+  svgWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gaugeValueWrapper: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  angleText: {
+    fontSize: 48,
+    fontWeight: '900',
+  },
+  angleLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+
+  feedbackBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  feedbackBoxWarn: {
+    borderColor: '#ff5252',
+    backgroundColor: 'rgba(255, 82, 82, 0.05)',
+  },
+  feedbackText: {
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  feedbackTextWarn: {
+    color: '#ff5252',
+  },
+  feedbackSubText: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  statLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '900',
+  },
+
+  controls: {
+    paddingHorizontal: 4,
+  },
+  btnPrimary: {
+    backgroundColor: '#00e5ff',
     paddingVertical: 16,
     borderRadius: 12,
     flexDirection: 'row',
@@ -404,7 +498,7 @@ const styles = StyleSheet.create({
   onboardIcon: { alignSelf: 'center', marginBottom: 12 },
   onboardTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
   onboardSub: { fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
-
+  
   step: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingRight: 8 },
   stepNum: {
     width: 24,
