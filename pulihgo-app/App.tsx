@@ -7,13 +7,14 @@
 //
 // The screens set no background of their own, so the dark background lives here.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import ExerciseScreen from './src/screens/ExerciseScreen';
 import GyroTestScreen from './src/screens/GyroTestScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
+import { sessionStore } from './src/storage/sessionStore';
 
 type Tab = 'exercise' | 'gyro' | 'progress' | 'summary';
 
@@ -27,6 +28,11 @@ const TABS: { key: Tab; label: string }[] = [
 export default function App() {
   // Land on Exercise — the MVP loop (docs/07-getting-started.md).
   const [tab, setTab] = useState<Tab>('exercise');
+
+  // Load saved sessions off the device once, on launch.
+  useEffect(() => {
+    sessionStore.hydrate();
+  }, []);
 
   return (
     <View style={styles.root}>

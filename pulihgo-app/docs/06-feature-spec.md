@@ -150,9 +150,14 @@ movement, never *maximum* angle or *maximum* reps.
 
 ## 11. Safety: pain check + stop rule
 **What:** A quick check-in that can end a session.
-**How it works:** Before/after a session, a one-tap pain check ("any pain? none /
-mild / stop"). A persistent "stop if it hurts" rule is always visible, and choosing
-"stop" ends the session and flags it. Simple, cheap, and it shows clinical awareness.
+**How it works:** A one-tap pain check ("any pain? none / mild") on **finish**, plus a
+persistent **"Stop — it hurts"** button visible for the whole session, which ends it
+immediately and saves it flagged `pain: 'stopped'`.
+**Decision (build):** the check is on *finish only*, not before-and-after. A gate
+before every session is friction in an app whose entire purpose is adherence — the
+stop button covers the during-session risk, which is the one that matters.
+A pain-stopped session **still counts towards the streak** (see feature 15): the
+patient did the right thing, and the app must never make stopping feel like a loss.
 **Owner:** `mobile`
 
 ## 12. Session recording + summary (offline-first)
