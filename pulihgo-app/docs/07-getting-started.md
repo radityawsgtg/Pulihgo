@@ -6,6 +6,11 @@ the errors we already hit, so you don't lose time to them.
 ## Prerequisites
 - **Node.js LTS** — install from nodejs.org
 - **Expo Go** app on your phone (App Store / Play Store) — must be the **latest**
+  available build. This project is pinned to **Expo SDK 54** to match — Apple's
+  review queue lags behind npm, so the App Store's Expo Go build is often a
+  version or two older than whatever `npx create-expo-app` would give you.
+  Don't bump the `expo` package in `package.json` past `~54.x` without first
+  checking that Expo Go's App Store release has caught up (see the fix below).
 - Laptop + phone on the **same wifi** (or use the phone's hotspot)
 
 ## Run the project
@@ -25,15 +30,19 @@ Handy keys in the Expo terminal: **`r`** reload · **`j`** open debugger console
 ## Fixes for errors we already saw
 
 ### "Project is incompatible with this version of Expo Go" (SDK mismatch)
-iOS only lets you install the **latest** Expo Go, so match the **project** to it.
-If Expo Go is SDK 54 and the project is 53:
+iOS only lets you install the **latest** Expo Go from the App Store, and that
+build supports a specific max SDK (currently **54** — check
+[expo.dev/changelog](https://expo.dev/changelog) if this project ever bumps
+past it). Match the **project** to whatever Expo Go can actually open:
 ```bash
-npx expo install expo@^54
+npx expo install expo@^54   # or whatever SDK Expo Go's App Store build supports
 npx expo install --fix
 npx expo start -c        # -c clears the cache (important after an SDK change)
 ```
 Everyone on the team must be on the **same SDK** and have **updated Expo Go**, or
-they'll hit this wall.
+they'll hit this wall. Don't jump to the newest SDK just because it's newest —
+`npx create-expo-app` and `npx expo install expo@latest` will happily give you
+an SDK that hasn't reached the App Store yet, which reproduces this exact error.
 
 ### npm `ERESOLVE ... @types/react` peer dependency error
 It's just npm being strict about a `@types` version — not a real code problem.
