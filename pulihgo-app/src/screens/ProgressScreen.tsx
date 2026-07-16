@@ -2,17 +2,16 @@
 // OWNER: Radit (taken over from Sulthan) · STATUS: ✅ working
 //
 // Redesigned to match a premium Whoop app dashboard.
-// Incorporates date navigation, animated progress gauges, a flickering streak flame,
-// and a custom interactive fire streak video popout modal using expo-av.
+// Incorporates interactive date navigation, animated SVG circular progress gauges,
+// and an interactive, tapping-sensitive flickering fire streak card that explodes sparks.
 
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps, dayKey } from '../progress/streak';
 import type { SessionSummary } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -114,8 +113,8 @@ function CircularProgress({ percentage, color, label, subLabel, theme }: RingPro
   );
 }
 
-// Flickering flame inside the streak banner card
-function FlickeringFlame({ active, onPressTrigger }: { active: boolean; onPressTrigger: () => void }) {
+// Flickering flame inside the streak banner card (responds to parent click increments)
+function FlickeringFlame({ active, clickCount }: { active: boolean; clickCount: number }) {
   const outerScale = useRef(new Animated.Value(1)).current;
   const middleScale = useRef(new Animated.Value(1)).current;
   const flameContainerScale = useRef(new Animated.Value(1)).current;
@@ -154,8 +153,9 @@ function FlickeringFlame({ active, onPressTrigger }: { active: boolean; onPressT
     };
   }, [active]);
 
-  const handlePress = () => {
-    onPressTrigger();
+  // Listen to parent clicks to trigger spring scaling and spark bursts
+  useEffect(() => {
+    if (clickCount === 0) return;
 
     Animated.sequence([
       Animated.timing(flameContainerScale, { toValue: 1.45, duration: 100, useNativeDriver: true }),
@@ -181,10 +181,10 @@ function FlickeringFlame({ active, onPressTrigger }: { active: boolean; onPressT
         Animated.timing(s.opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
       ]).start();
     });
-  };
+  }, [clickCount]);
 
   return (
-    <Pressable onPress={handlePress} style={styles.flameTouchZone}>
+    <View style={styles.flameTouchZone}>
       <View style={styles.flameContainer}>
         {sparks.map((s, idx) => (
           <Animated.View
@@ -206,7 +206,7 @@ function FlickeringFlame({ active, onPressTrigger }: { active: boolean; onPressT
           <View style={[styles.flameTeardrop, styles.flameInner, { transform: [{ rotate: '-45deg' }] }]} />
         </Animated.View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -219,8 +219,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const sessions = useSessions();
   const streak = computeStreak(sessions);
   
-  const [showStreakModal, setShowStreakModal] = useState(false);
-  const videoRef = useRef<Video>(null);
+  const [clickCount, setClickCount] = useState(0);
 
   const [selectedDate, setSelectedDate] = useState<number>(Date.now());
   const selectedKey = dayKey(selectedDate);
@@ -241,14 +240,6 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
     ? daySessions.reduce((sum, s) => sum + s.avgSmoothness, 0) / daySessions.length
     : 0;
   const smoothnessPercent = Math.round(dayAvgSmoothness * 100);
-
-  // Trigger video replay on modal visibility transition
-  useEffect(() => {
-    if (showStreakModal && videoRef.current) {
-      videoRef.current.setPositionAsync(0);
-      videoRef.current.playAsync();
-    }
-  }, [showStreakModal]);
 
   const isDark = theme === 'dark';
   const colors = {
@@ -312,10 +303,6 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const dayHasSessions = (date: Date) => {
     const key = dayKey(date.getTime());
     return sessions.some((s) => dayKey(s.startedAt) === key);
-  };
-
-  const showBurstFeedback = () => {
-    setShowStreakModal(true);
   };
 
   return (
@@ -417,16 +404,16 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           <Text style={[styles.coachMessage, { color: colors.body }]}>{coachMessage}</Text>
         </View>
 
-        {/* Practice Streak Banner (Burstable Flame animation + click trigger popup modal) */}
+        {/* Practice Streak Banner (Tapping triggers flame click-burst animation) */}
         <Pressable 
-          onPress={() => setShowStreakModal(true)}
+          onPress={() => setClickCount(c => c + 1)}
           style={[styles.streakBanner, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
         >
-          <FlickeringFlame active={streak.current > 0} onPressTrigger={showBurstFeedback} />
+          <FlickeringFlame active={streak.current > 0} clickCount={clickCount} />
           <View style={styles.streakInfo}>
             <Text style={[styles.streakValue, { color: colors.title }]}>{streak.current} {streak.current === 1 ? 'day' : 'days'} streak</Text>
             <Text style={[styles.streakSub, { color: colors.body }]}>
-              {streak.practicedToday ? 'Streak locked today • Tap flame!' : 'Not practiced yet today'}
+              {streak.practicedToday ? 'Streak locked today • Tap banner!' : 'Not practiced yet today'}
             </Text>
           </View>
           <View style={styles.streakBest}>
@@ -502,74 +489,6 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
           ))
         )}
       </ScrollView>
-
-      {/* Whoop-Style Streak Modal Popout with Seamless MP4 Video Playback */}
-      <Modal
-        visible={showStreakModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowStreakModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Pressable onPress={() => setShowStreakModal(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color="#ffffff" />
-            </Pressable>
-
-            <Text style={styles.modalStreakNum}>{streak.current}</Text>
-            <Text style={styles.modalStreakLabel}>
-              {streak.current === 1 ? 'day streak' : 'days streak'}
-            </Text>
-
-            {/* Seamless MP4 Video Player */}
-            <View style={styles.modalVideoContainer}>
-              <Video
-                ref={videoRef}
-                source={require('../../assets/Fire Streak Pop.mp4')}
-                style={styles.modalVideo}
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay={true}
-                isLooping={false}
-                isMuted={true}
-              />
-            </View>
-
-            {/* Weekly Checklist Tracker (Figma style) */}
-            <View style={styles.modalCalendarCard}>
-              <View style={styles.modalWeekRow}>
-                {weekDays.map((d, index) => {
-                  const hasActivity = dayHasSessions(d);
-                  const dayLabel = WEEKDAYS_SHORT[index];
-                  
-                  return (
-                    <View key={index} style={styles.modalWeekDayItem}>
-                      <Text style={styles.modalWeekDayLabel}>{dayLabel}</Text>
-                      {hasActivity ? (
-                        <View style={styles.checkedCircle}>
-                          <Ionicons name="checkmark" size={12} color="#0b0e11" />
-                        </View>
-                      ) : (
-                        <View style={styles.uncheckedCircle} />
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-              
-              <Text style={styles.modalExplanation}>
-                A streak counts how many days you've practiced in a row. Keep practicing daily to grow your recovery flame!
-              </Text>
-            </View>
-
-            <Pressable 
-              onPress={() => setShowStreakModal(false)} 
-              style={styles.modalGotItBtn}
-            >
-              <Text style={styles.modalGotItText}>Got it</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -869,127 +788,5 @@ const styles = StyleSheet.create({
   noHistoryText: {
     fontSize: 12.5,
     textAlign: 'center',
-  },
-
-  // Modal Popout styles (configured always black to seamlessly host the video)
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 24,
-    alignItems: 'center',
-    position: 'relative',
-    backgroundColor: '#121417',
-    borderColor: '#1c1f22',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  modalCloseBtn: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 4,
-  },
-  modalStreakNum: {
-    fontSize: 48,
-    fontWeight: '900',
-    textAlign: 'center',
-    marginTop: 10,
-    color: '#ffffff',
-  },
-  modalStreakLabel: {
-    fontSize: 14,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginTop: 2,
-    letterSpacing: 0.5,
-    color: '#ffffff',
-  },
-  modalVideoContainer: {
-    width: 220,
-    height: 220,
-    marginVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#121417',
-  },
-  modalVideo: {
-    width: 220,
-    height: 220,
-    backgroundColor: '#121417',
-  },
-  modalCalendarCard: {
-    width: '100%',
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 20,
-    backgroundColor: '#0b0e11',
-    borderColor: '#1c1f22',
-  },
-  modalWeekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  modalWeekDayItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  modalWeekDayLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    color: '#8e9aa0',
-  },
-  checkedCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#00e676',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uncheckedCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    backgroundColor: 'transparent',
-    borderColor: '#464d52',
-  },
-  modalExplanation: {
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
-    marginTop: 8,
-    color: '#8e9aa0',
-  },
-  modalGotItBtn: {
-    backgroundColor: '#00e5ff',
-    paddingVertical: 14,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-  },
-  modalGotItText: {
-    color: '#0b0e11',
-    fontWeight: '800',
-    fontSize: 14.5,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
 });
