@@ -232,10 +232,16 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const [clickCount, setClickCount] = useState(0);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [modalClickCount, setModalClickCount] = useState(0);
+  const [expandedLogs, setExpandedLogs] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<number>(Date.now());
   const selectedKey = dayKey(selectedDate);
   const isSelectedToday = dayKey(Date.now()) === selectedKey;
+
+  // Reset expanded logs state when selected day changes
+  useEffect(() => {
+    setExpandedLogs(false);
+  }, [selectedKey]);
 
   const daySessions = sessions.filter((s) => dayKey(s.startedAt) === selectedKey);
   const hasSelectedPractice = daySessions.length > 0;
@@ -557,40 +563,64 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
             <Text style={[styles.noHistoryText, { color: colors.body }]}>No sessions recorded on this day.</Text>
           </View>
         ) : (
-          daySessions.map((s: SessionSummary) => (
-            <View key={s.id} style={[styles.activityCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-              <View style={styles.activityHeader}>
-                <View style={styles.activityTitleRow}>
-                  <Ionicons name="pulse" size={18} color="#00e5ff" style={styles.activityIcon} />
-                  <Text style={[styles.activityTitle, { color: colors.title }]}>Forearm Rotation</Text>
+          <>
+            {[...daySessions]
+              .sort((a, b) => b.startedAt - a.startedAt)
+              .slice(0, expandedLogs ? undefined : 1)
+              .map((s: SessionSummary) => (
+                <View key={s.id} style={[styles.activityCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+                  <View style={styles.activityHeader}>
+                    <View style={styles.activityTitleRow}>
+                      <Ionicons name="pulse" size={18} color="#00e5ff" style={styles.activityIcon} />
+                      <Text style={[styles.activityTitle, { color: colors.title }]}>Forearm Rotation</Text>
+                    </View>
+                    <Text style={[styles.activityTime, { color: colors.body }]}>{formatTime(s.startedAt)}</Text>
+                  </View>
+                  <View style={[styles.activityDivider, { backgroundColor: colors.borderStyle }]} />
+                  <View style={styles.activityStatsRow}>
+                    <View style={styles.activityStat}>
+                      <Text style={[styles.activityStatValue, { color: colors.title }]}>{s.reps.length}</Text>
+                      <Text style={[styles.activityStatLabel, { color: colors.body }]}>REPS</Text>
+                    </View>
+                    <View style={[styles.activityStatDivider, { backgroundColor: colors.borderStyle }]} />
+                    <View style={styles.activityStat}>
+                      <Text style={[styles.activityStatValue, { color: colors.title }]}>{s.peakRomDeg.toFixed(0)}°</Text>
+                      <Text style={[styles.activityStatLabel, { color: colors.body }]}>PEAK ROM</Text>
+                    </View>
+                    <View style={[styles.activityStatDivider, { backgroundColor: colors.borderStyle }]} />
+                    <View style={styles.activityStat}>
+                      <Text style={[styles.activityStatValue, { color: colors.title }]}>{(s.avgSmoothness * 100).toFixed(0)}%</Text>
+                      <Text style={[styles.activityStatLabel, { color: colors.body }]}>SMOOTH</Text>
+                    </View>
+                  </View>
+                  {s.pain === 'stopped' && (
+                    <View style={styles.activityPainBadge}>
+                      <Ionicons name="alert-circle" size={14} color="#ff5252" style={{ marginRight: 4 }} />
+                      <Text style={styles.activityPainText}>Stopped due to pain</Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={[styles.activityTime, { color: colors.body }]}>{formatTime(s.startedAt)}</Text>
-              </View>
-              <View style={[styles.activityDivider, { backgroundColor: colors.borderStyle }]} />
-              <View style={styles.activityStatsRow}>
-                <View style={styles.activityStat}>
-                  <Text style={[styles.activityStatValue, { color: colors.title }]}>{s.reps.length}</Text>
-                  <Text style={[styles.activityStatLabel, { color: colors.body }]}>REPS</Text>
-                </View>
-                <View style={[styles.activityStatDivider, { backgroundColor: colors.borderStyle }]} />
-                <View style={styles.activityStat}>
-                  <Text style={[styles.activityStatValue, { color: colors.title }]}>{s.peakRomDeg.toFixed(0)}°</Text>
-                  <Text style={[styles.activityStatLabel, { color: colors.body }]}>PEAK ROM</Text>
-                </View>
-                <View style={[styles.activityStatDivider, { backgroundColor: colors.borderStyle }]} />
-                <View style={styles.activityStat}>
-                  <Text style={[styles.activityStatValue, { color: colors.title }]}>{(s.avgSmoothness * 100).toFixed(0)}%</Text>
-                  <Text style={[styles.activityStatLabel, { color: colors.body }]}>SMOOTH</Text>
-                </View>
-              </View>
-              {s.pain === 'stopped' && (
-                <View style={styles.activityPainBadge}>
-                  <Ionicons name="alert-circle" size={14} color="#ff5252" style={{ marginRight: 4 }} />
-                  <Text style={styles.activityPainText}>Stopped due to pain</Text>
-                </View>
-              )}
-            </View>
-          ))
+              ))}
+
+            {daySessions.length > 1 && (
+              <Pressable 
+                onPress={() => setExpandedLogs(!expandedLogs)} 
+                style={[styles.showMoreBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              >
+                <Text style={[styles.showMoreText, { color: '#00e5ff' }]}>
+                  {expandedLogs 
+                    ? 'Show Less' 
+                    : `Show All Logs (${daySessions.length} sessions)`}
+                </Text>
+                <Ionicons 
+                  name={expandedLogs ? "chevron-up" : "chevron-down"} 
+                  size={16} 
+                  color="#00e5ff" 
+                  style={{ marginLeft: 6 }} 
+                />
+              </Pressable>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -1157,5 +1187,21 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  showMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
+    marginBottom: 20,
+    width: '100%',
+  },
+  showMoreText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
