@@ -41,7 +41,8 @@ const DUMMY_TARGET_ROM_DEG = 70;
 // ExerciseConfig.romCeilingDeg. Kept separate from safety.ts's
 // DEFAULT_ROM_CEILING_DEG (that one drives the existing real-time "past safe
 // range" warning off the LIVE angle; this one drives the target/ceiling
-// progress cue off the session's PEAK ROM below). Invariant: must stay
+// progress cue below, ALSO off the LIVE angle — both need to react while the
+// patient is mid-movement, not after the fact). Invariant: must stay
 // greater than DUMMY_TARGET_ROM_DEG — the ceiling is the hard stop, the
 // target is what we nudge toward, never past.
 const DUMMY_CEILING_ROM_DEG = 90;
@@ -49,16 +50,21 @@ const DUMMY_CEILING_ROM_DEG = 90;
 type CueTone = 'push' | 'positive' | 'stop';
 
 /**
- * Progress cue based on the session's PEAK ROM so far (not the live angle):
+ * Progress cue based on the LIVE angle right now (not peak ROM): peak is
+ * only final once a rep completes (limb back near neutral), which would make
+ * this cue land after the movement is already over — too late to be useful
+ * as real-time feedback, and too late as a safety cue for the ceiling case.
+ * Pass Math.abs(value) in so this works the same for both directions
+ * (supination and pronation).
  *  - below target       -> push the patient a bit further
  *  - target..ceiling     -> positive, and the push turns off (never nudge
  *                           past the target once it's reached)
  *  - at/past ceiling     -> neutral stop message — this is a safety limit,
  *                           NOT a reward, so the tone must not read as praise
  */
-function romCue(peakDeg: number, targetDeg: number, ceilingDeg: number): { text: string; tone: CueTone } {
-  if (peakDeg >= ceilingDeg) return { text: 'Cukup — jangan lebih', tone: 'stop' };
-  if (peakDeg >= targetDeg) return { text: 'Bagus! Target tercapai', tone: 'positive' };
+function romCue(liveDeg: number, targetDeg: number, ceilingDeg: number): { text: string; tone: CueTone } {
+  if (liveDeg >= ceilingDeg) return { text: 'Cukup — jangan lebih', tone: 'stop' };
+  if (liveDeg >= targetDeg) return { text: 'Bagus! Target tercapai', tone: 'positive' };
   return { text: 'Ayo, sedikit lagi', tone: 'push' };
 }
 
@@ -127,7 +133,7 @@ export default function ExerciseScreen() {
   };
 
   const past = isPastCeiling(value);
-  const cue = romCue(peak, DUMMY_TARGET_ROM_DEG, DUMMY_CEILING_ROM_DEG);
+  const cue = romCue(Math.abs(value), DUMMY_TARGET_ROM_DEG, DUMMY_CEILING_ROM_DEG);
 
   if (granted === false) {
     return (
