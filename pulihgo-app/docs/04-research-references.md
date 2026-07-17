@@ -90,6 +90,23 @@ PMC7380903).**
   direction.
 - **Use for:** "this is a live field, not a toy idea."
 
+**[T6] Behnoush et al. (2016).** *Smartphone and Universal Goniometer for
+Measurement of Elbow Joint Motions: A Comparative Study.* Asian Journal of
+Sports Medicine.
+- 60 volunteers, ages 22–72. Smartphone inclinometer inter-rater reliability
+  for elbow flexion: ICC 0.95 (vs. ICC 0.77 for a universal goniometer);
+  absolute agreement between the two tools: ICC 0.84.
+- Conclusion: a smartphone is a viable substitute for a goniometer for elbow
+  ROM measurement.
+- Broader confirmation: a systematic review of clinically-accessible
+  smartphone ROM apps (Pourahmadi et al., 2019, PLOS ONE) found adequate
+  intra-/inter-rater reliability and validity across joints including the
+  elbow when benchmarked against goniometers/inclinometers.
+- **Use for:** justifying **elbow flexion/extension** as the second MVP
+  exercise — same forearm strap as feature 5, same single-sensor honesty
+  rule (feature 5's rationale), now with its own direct validation instead
+  of borrowing T1/T2's general upper-limb framing.
+
 ---
 
 ## C. How to cite responsibly

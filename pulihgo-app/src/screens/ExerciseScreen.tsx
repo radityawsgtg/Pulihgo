@@ -1,10 +1,4 @@
-// src/screens/ExerciseScreen.tsx
-// OWNER: Radit (taken over from Sulthan) + Pradipta (metrics) · STATUS: ✅ full MVP loop
-//
-// Redesigned to match a premium Whoop app activity tracker.
-// Displays live SVG angle gauge, dynamic velocity/pain safety states,
-// onboarding/calibration guide, a clean pain check questionnaire, and global themes.
-
+﻿// src/screens/ExerciseScreen.tsx
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
 import { useCalibratedAngle } from '../sensors/useCalibratedAngle';
@@ -12,13 +6,10 @@ import { RepDetector } from '../metrics/repDetector';
 import { smoothness } from '../metrics/smoothness';
 import { isPastCeiling, PAIN_OPTIONS } from '../safety/safety';
 import { sessionStore } from '../storage/sessionStore';
-import { usePrescription } from '../sync/usePrescription';
-import type { Axis, PainLevel, RepMetric, SessionSummary } from '../types';
+import type { Axis, PainLevel, RepMetric, SessionSummary, ExerciseConfig } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
-const EXERCISE_AXIS: Axis = 'roll';
-const EXERCISE_ID = 'forearm_supination';
 const SAMPLE_MS = 50;
 
 const PAIN_LABEL: Record<PainLevel, string> = {
@@ -28,50 +19,32 @@ const PAIN_LABEL: Record<PainLevel, string> = {
   unknown: 'Not asked',
 };
 
-// Target/ceiling now come from usePrescription(): the therapist's plan from
-// Supabase when reachable, the last cached plan when offline, and the
-// FALLBACK_* constants in src/sync/fetchPrescription.ts when neither exists.
-// (The old DUMMY_TARGET_ROM_DEG = 70 lives on there as the fallback.)
-
-const PLAN_SOURCE_LABEL = {
-  server: 'Therapist plan · synced',
-  cache: 'Therapist plan · offline copy',
-  default: 'Default plan — no therapist target set yet',
-} as const;
-
 interface ExerciseScreenProps {
+  config: ExerciseConfig;
+  onExit: () => void;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
 }
 
-export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenProps) {
+export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: ExerciseScreenProps) {
   const { angles, granted, calibrate } = useCalibratedAngle(SAMPLE_MS);
-  const { rx, status: rxStatus } = usePrescription();
   const [reps, setReps] = useState(0);
   const [peak, setPeak] = useState(0);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
   const [justSaved, setJustSaved] = useState<PainLevel | null>(null);
-  // Created in start(), not at mount: the prescription resolves async, and a
-  // detector built at mount would keep the fallback thresholds even after the
-  // therapist's real target arrived.
-  const detector = useRef<RepDetector | null>(null);
+  
+  // Initialize RepDetector with config-driven target ROM
+  const detector = useRef(new RepDetector({ targetRomDeg: config.targetRomDeg }));
   const repsRef = useRef<RepMetric[]>([]);
 
-  const value = angles[EXERCISE_AXIS];
+  const value = angles[config.axis];
   const running = startedAt !== null;
 
-  // Feed samples to the detector only while a session is running.
+  // Re-initialize detector when exercise changes
   useEffect(() => {
-    if (running) detector.current?.push(value, Date.now());
-  }, [value, running]);
-
-  const start = () => {
-    calibrate();
-    // Fresh detector per session, derived from whatever plan is current —
-    // therapist's target when synced, cache/fallback otherwise.
-    const det = new RepDetector({ targetRomDeg: rx.targetRomDeg });
-    det.onRep = (rep) => {
+    detector.current = new RepDetector({ targetRomDeg: config.targetRomDeg });
+    detector.current.onRep = (rep) => {
       repsRef.current.push({
         index: rep.index,
         peakRomDeg: rep.peakRomDeg,
@@ -81,7 +54,18 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
       setReps(rep.index);
       setPeak((p) => Math.max(p, rep.peakRomDeg));
     };
-    detector.current = det;
+  }, [config]);
+
+  // Feed samples to the detector only while a session is running
+  useEffect(() => {
+    if (running) {
+      detector.current.push(value, Date.now());
+    }
+  }, [value, running]);
+
+  const start = () => {
+    calibrate();
+    detector.current.reset();
     repsRef.current = [];
     setReps(0);
     setPeak(0);
@@ -96,7 +80,7 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
     const list = repsRef.current;
     const summary: SessionSummary = {
       id: `ses_${endedAt}`,
-      exerciseId: EXERCISE_ID,
+      exerciseId: config.id,
       startedAt,
       endedAt,
       reps: list,
@@ -110,54 +94,81 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
     setJustSaved(pain);
   };
 
-  // Theme support colors
+  // Accessible light/dark design tokens
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#0b0e11' : '#f0f2f5',
-    cardBg: isDark ? '#121417' : '#ffffff',
-    cardBorder: isDark ? '#1c1f22' : '#e2e8f0',
-    title: isDark ? '#ffffff' : '#0b0e11',
-    body: isDark ? '#8e9aa0' : '#64748b',
-    highlight: isDark ? '#cfe6ea' : '#334155',
+    bg: isDark ? '#0b0e11' : '#FAFAF7',
+    cardBg: isDark ? '#121417' : '#FFFFFF',
+    cardBorder: isDark ? '#1c1f22' : '#E2E4DE',
+    title: isDark ? '#FFFFFF' : '#1A1D1A',
+    body: isDark ? '#8e9aa0' : '#5B5F58',
+    accent: isDark ? '#00C2C2' : '#0E7C7B',
+    accentSoft: isDark ? 'rgba(0,194,194,0.12)' : '#E1F4F7',
+    safe: isDark ? '#00e676' : '#1E9E5A',
+    safeSoft: isDark ? 'rgba(0,230,118,0.1)' : '#E2F4EB',
+    danger: isDark ? '#ff5252' : '#D64545',
+    dangerSoft: isDark ? 'rgba(255,82,82,0.1)' : '#FBE6E4',
+    caution: isDark ? '#ffb020' : '#C77800',
   };
 
-  const past = isPastCeiling(value, rx.romCeilingDeg);
+  // Safety ceiling check using config properties
+  const past = isPastCeiling(value, config.romCeilingDeg);
   const absAngle = Math.abs(value);
-  const romPercent = Math.min(100, Math.round((absAngle / rx.targetRomDeg) * 100));
+  const romPercent = Math.min(100, Math.round((absAngle / config.targetRomDeg) * 100));
 
-  // Determine colors and messages dynamically based on safety and metrics
-  let gaugeColor = "#00e5ff"; // default cyan
-  let feedbackMessage = "Rotate your forearm slowly and with control.";
-  let feedbackSub = `Aim for your target ROM of ${rx.targetRomDeg}°`;
+  // Determine feedback messaging
+  let gaugeColor = colors.accent;
+  let feedbackMessage = 'Move slowly and with control.';
+  let feedbackSub = `Aim for your target ROM of ${config.targetRomDeg}┬░`;
 
   if (past) {
-    gaugeColor = "#ff5252"; // Warning Red
-    feedbackMessage = "⚠️ SLOW DOWN & RETURN";
-    feedbackSub = `Exceeded safe range limit of ±${rx.romCeilingDeg}°`;
-  } else if (absAngle >= rx.targetRomDeg) {
-    gaugeColor = "#00e676"; // Success Green
-    feedbackMessage = "TARGET HIT!";
-    feedbackSub = "Now rotate slowly back to the starting point.";
+    gaugeColor = colors.danger;
+    feedbackMessage = 'ΓÜá∩╕Å SLOW DOWN & RETURN';
+    feedbackSub = `Exceeded safe range limit of ┬▒${config.romCeilingDeg}┬░`;
+  } else if (absAngle >= config.targetRomDeg) {
+    gaugeColor = colors.safe;
+    feedbackMessage = 'TARGET HIT!';
+    feedbackSub = 'Now rotate slowly back to the starting point.';
   } else if (absAngle > 10) {
-    feedbackMessage = "Good rotation, keep going...";
-    feedbackSub = `Push toward the ${rx.targetRomDeg}° target ring`;
+    feedbackMessage = 'Good movement, keep going...';
+    feedbackSub = `Push toward the ${config.targetRomDeg}┬░ target ring`;
   }
 
-  // SVG math
-  const gaugeSize = 190;
-  const gaugeStroke = 10;
+  // SVG math for angle visual gauge
+  const gaugeSize = 200;
+  const gaugeStroke = 12;
   const radius = (gaugeSize - gaugeStroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (romPercent / 100) * circumference;
 
+  // On-device instructions depending on selected exercise config
+  const getSteps = () => {
+    if (config.id === 'elbow_flexion_extension') {
+      return [
+        { n: '1', text: 'Strap the phone screen-up along your affected forearm.' },
+        { n: '2', text: 'Sit upright, arm relaxed at your side, elbow straight.' },
+        { n: '3', text: 'Slowly bend your elbow, then straighten it back out.' },
+      ];
+    }
+    // Default forearm rotation
+    return [
+      { n: '1', text: 'Strap the phone screen-up along your affected forearm.' },
+      { n: '2', text: 'Sit upright with your elbow bent at a comfortable 90┬░ angle.' },
+      { n: '3', text: 'Hold your forearm flat in a neutral starting position.' },
+    ];
+  };
+
   if (granted === false) {
     return (
       <View style={[styles.permissionContainer, { backgroundColor: colors.bg }]}>
-        <Ionicons name="warning-outline" size={48} color="#ffb020" style={{ marginBottom: 16 }} />
-        <Text style={[styles.warnText, { color: colors.title }]}>⚠️ Motion Access Required</Text>
+        <Ionicons name="warning-outline" size={48} color={colors.caution} style={{ marginBottom: 16 }} />
+        <Text style={[styles.warnText, { color: colors.title }]}>ΓÜá∩╕Å Motion Access Required</Text>
         <Text style={[styles.warnSubText, { color: colors.body }]}>
-          Please enable Motion & Fitness access in Settings → Expo Go on your mobile device to capture gyroscope data.
+          Please enable Motion & Fitness access in Settings ΓåÆ Expo Go on your mobile device to capture gyroscope data.
         </Text>
+        <Pressable onPress={onExit} style={[styles.btnStart, { backgroundColor: colors.accent, marginTop: 24, width: '100%' }]}>
+          <Text style={styles.btnStartText}>Go Back</Text>
+        </Pressable>
       </View>
     );
   }
@@ -166,25 +177,30 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
     return (
       <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center' }]}>
         <View style={[styles.questionnaireCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-          <Ionicons name="heart-circle-outline" size={54} color="#00e5ff" style={{ marginBottom: 12, alignSelf: 'center' }} />
+          <Ionicons name="heart-circle-outline" size={54} color={colors.accent} style={{ marginBottom: 12, alignSelf: 'center' }} />
           <Text style={[styles.questionTitle, { color: colors.title }]}>How did that feel?</Text>
-          <Text style={[styles.questionSub, { color: colors.body }]}>Please report any joint pain experienced during forearm rotation.</Text>
+          <Text style={[styles.questionSub, { color: colors.body }]}>Please report any joint pain experienced during your exercise.</Text>
           
           {PAIN_OPTIONS.filter((p) => p !== 'stopped').map((p) => (
-            <Pressable key={p} style={[styles.painBtn, { backgroundColor: isDark ? '#1c1f22' : '#f8fafc', borderColor: colors.cardBorder }]} onPress={() => save(p)}>
+            <Pressable
+              key={p}
+              style={[styles.painBtn, { backgroundColor: isDark ? '#1c1f22' : '#FFFFFF', borderColor: colors.cardBorder }]}
+              onPress={() => save(p)}
+              accessibilityRole="button"
+            >
               <View style={styles.painBtnContent}>
                 <Text style={[styles.painBtnText, { color: colors.title }]}>{PAIN_LABEL[p]}</Text>
                 <Ionicons 
                   name={p === 'none' ? 'shield-checkmark-outline' : 'warning-outline'} 
                   size={20} 
-                  color={p === 'none' ? '#00e676' : '#ffb020'} 
+                  color={p === 'none' ? colors.safe : colors.caution} 
                 />
               </View>
             </Pressable>
           ))}
           
-          <Pressable style={styles.btnGhost} onPress={() => setAsking(false)}>
-            <Text style={[styles.btnGhostText, { color: colors.body }]}>Return to Session</Text>
+          <Pressable style={styles.btnGhost} onPress={() => setAsking(false)} accessibilityRole="button">
+            <Text style={[styles.btnGhostText, { color: colors.accent }]}>Return to Session</Text>
           </Pressable>
         </View>
       </View>
@@ -198,12 +214,25 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
           {/* Active Header */}
           <View style={styles.activeHeader}>
             <View style={styles.activeHeaderTop}>
-              <Text style={styles.activeLabel}>SESSION IN PROGRESS</Text>
-              <Pressable onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-                <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={14} color={colors.title} />
+              <Pressable
+                onPress={() => save('none')}
+                style={[styles.backIconBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+              >
+                <Ionicons name="chevron-back-outline" size={24} color={colors.title} />
+              </Pressable>
+              <Text style={[styles.activeLabel, { color: colors.accent }]}>SESSION IN PROGRESS</Text>
+              <Pressable
+                onPress={toggleTheme}
+                style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle Theme"
+              >
+                <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.title} />
               </Pressable>
             </View>
-            <Text style={[styles.exerciseName, { color: colors.title }]}>Forearm Supination / Pronation</Text>
+            <Text style={[styles.exerciseName, { color: colors.title }]}>{config.name}</Text>
           </View>
 
           {/* Large Interactive SVG Gauge */}
@@ -214,7 +243,7 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
                   cx={gaugeSize / 2}
                   cy={gaugeSize / 2}
                   r={radius}
-                  stroke={isDark ? '#1c1f22' : '#e2e8f0'}
+                  stroke={isDark ? '#1c1f22' : '#E2E4DE'}
                   strokeWidth={gaugeStroke}
                   fill="transparent"
                 />
@@ -232,17 +261,25 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
                 />
               </Svg>
               <View style={styles.gaugeValueWrapper}>
-                <Text style={[styles.angleText, { color: colors.title }, past && { color: '#ff5252' }]}>
-                  {value.toFixed(0)}°
+                <Text style={[styles.angleText, { color: colors.title }, past && { color: colors.danger }]}>
+                  {value.toFixed(0)}┬░
                 </Text>
-                <Text style={[styles.angleLabel, { color: colors.body }]}>FOREARM ANGLE</Text>
+                <Text style={[styles.angleLabel, { color: colors.body }]}>
+                  {config.id === 'elbow_flexion_extension' ? 'ELBOW ANGLE' : 'FOREARM ANGLE'}
+                </Text>
               </View>
             </View>
           </View>
 
           {/* Feedback Coach Box */}
-          <View style={[styles.feedbackBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }, past && styles.feedbackBoxWarn]}>
-            <Text style={[styles.feedbackText, { color: colors.title }, past && styles.feedbackTextWarn]}>
+          <View
+            style={[
+              styles.feedbackBox,
+              { backgroundColor: colors.cardBg, borderColor: colors.cardBorder },
+              past && { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
+            ]}
+          >
+            <Text style={[styles.feedbackText, { color: colors.title }, past && { color: colors.danger }]}>
               {feedbackMessage}
             </Text>
             <Text style={[styles.feedbackSubText, { color: colors.body }]}>
@@ -254,26 +291,23 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
               <Text style={[styles.statLabel, { color: colors.body }]}>REPETITIONS</Text>
-              <Text style={[styles.statValue, { color: colors.title }]}>
-                {reps}
-                <Text style={[styles.statTarget, { color: colors.body }]}> / {rx.targetReps}</Text>
-              </Text>
+              <Text style={[styles.statValue, { color: colors.title }]}>{reps}</Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
               <Text style={[styles.statLabel, { color: colors.body }]}>PEAK ANGLE</Text>
-              <Text style={[styles.statValue, { color: colors.title }]}>{peak.toFixed(0)}°</Text>
+              <Text style={[styles.statValue, { color: colors.title }]}>{peak.toFixed(0)}┬░</Text>
             </View>
           </View>
 
           {/* Large interactive controls */}
           <View style={styles.controls}>
-            <Pressable style={styles.btnPrimary} onPress={() => setAsking(true)}>
-              <Ionicons name="checkmark" size={20} color="#0b0e11" style={{ marginRight: 6 }} />
+            <Pressable onPress={() => setAsking(true)} style={[styles.btnPrimary, { backgroundColor: colors.accent }]} accessibilityRole="button">
+              <Ionicons name="checkmark" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={styles.btnPrimaryText}>Finish Practice</Text>
             </Pressable>
-            <Pressable style={styles.btnStop} onPress={() => save('stopped')}>
-              <Ionicons name="alert-circle" size={20} color="#ff5252" style={{ marginRight: 6 }} />
-              <Text style={styles.btnStopText}>Stop — it hurts</Text>
+            <Pressable onPress={() => save('stopped')} style={[styles.btnStop, { borderColor: colors.danger, backgroundColor: colors.dangerSoft }]} accessibilityRole="button">
+              <Ionicons name="alert-circle" size={20} color={colors.danger} style={{ marginRight: 6 }} />
+              <Text style={[styles.btnStopText, { color: colors.danger }]}>Stop ΓÇö it hurts</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -281,70 +315,58 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Onboarding / Setup State */}
           <View style={styles.onboardHeaderRow}>
+            <Pressable
+              onPress={onExit}
+              style={[styles.backIconBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel="Exit to library"
+            >
+              <Ionicons name="chevron-back-outline" size={24} color={colors.title} />
+            </Pressable>
             <Text style={[styles.brandHeader, { color: colors.title }]}>P U L I H G O</Text>
-            <Pressable onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-              <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={14} color={colors.title} />
+            <Pressable
+              onPress={toggleTheme}
+              style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel="Toggle Theme"
+            >
+              <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.title} />
             </Pressable>
           </View>
           
           <View style={[styles.onboardingCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Ionicons name="shield-checkmark" size={40} color="#00e5ff" style={styles.onboardIcon} />
+            <Ionicons name="shield-checkmark" size={40} color={colors.accent} style={styles.onboardIcon} />
             <Text style={[styles.onboardTitle, { color: colors.title }]}>Ready to Practice?</Text>
             <Text style={[styles.onboardSub, { color: colors.body }]}>Please follow the guidelines to ensure safety and accurate measurements:</Text>
             
-            <View style={styles.step}>
-              <View style={[styles.stepNum, { backgroundColor: isDark ? '#1c1f22' : '#f1f5f9' }]}>
-                <Text style={styles.stepNumText}>1</Text>
+            {getSteps().map((step) => (
+              <View key={step.n} style={styles.step}>
+                <View style={[styles.stepNum, { backgroundColor: colors.accentSoft }]}>
+                  <Text style={[styles.stepNumText, { color: colors.accent }]}>{step.n}</Text>
+                </View>
+                <Text style={[styles.stepText, { color: colors.title }]}>{step.text}</Text>
               </View>
-              <Text style={[styles.stepText, { color: colors.title }]}>Strap the phone screen-up along your affected forearm.</Text>
-            </View>
-            <View style={styles.step}>
-              <View style={[styles.stepNum, { backgroundColor: isDark ? '#1c1f22' : '#f1f5f9' }]}>
-                <Text style={styles.stepNumText}>2</Text>
-              </View>
-              <Text style={[styles.stepText, { color: colors.title }]}>Sit upright with your elbow bent at a comfortable 90° angle.</Text>
-            </View>
-            <View style={styles.step}>
-              <View style={[styles.stepNum, { backgroundColor: isDark ? '#1c1f22' : '#f1f5f9' }]}>
-                <Text style={styles.stepNumText}>3</Text>
-              </View>
-              <Text style={[styles.stepText, { color: colors.title }]}>Hold your forearm flat in a neutral starting position.</Text>
-            </View>
+            ))}
 
-            <Pressable
-              style={[styles.btnStart, rxStatus === 'loading' && styles.btnStartLoading]}
-              onPress={start}
-              disabled={rxStatus === 'loading'}
-            >
-              <Ionicons name="options" size={20} color="#0b0e11" style={{ marginRight: 8 }} />
-              <Text style={styles.btnStartText}>
-                {rxStatus === 'loading' ? 'Loading your plan…' : 'Calibrate & Start'}
-              </Text>
+            <Pressable onPress={start} style={[styles.btnStart, { backgroundColor: colors.accent }]} accessibilityRole="button">
+              <Ionicons name="options" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.btnStartText}>Calibrate & Start</Text>
             </Pressable>
-
-            {/* Which plan this session will run against, and where it came
-                from — this line is how the demo proves the therapist loop. */}
-            <Text style={[styles.planLine, { color: colors.highlight }]}>
-              Target {rx.targetRomDeg}° · Safe limit {rx.romCeilingDeg}° · {rx.targetReps} reps
-            </Text>
-            <Text style={[styles.planSource, { color: colors.body }]}>
-              {rxStatus === 'loading' ? 'Checking for your therapist’s plan…' : PLAN_SOURCE_LABEL[rx.source]}
-            </Text>
-
+            
             <Text style={[styles.onboardHint, { color: colors.body }]}>
-              Tapping starts session calibration. This sets your current position as 0° (neutral).
+              Tapping starts session calibration. This sets your current position as 0┬░ (neutral).
             </Text>
           </View>
           
           {justSaved && (
-            <View style={[styles.savedBanner, justSaved === 'stopped' && styles.savedBannerWarn]}>
+            <View style={[styles.savedBanner, justSaved === 'stopped' ? { borderColor: colors.danger, backgroundColor: colors.dangerSoft } : { borderColor: colors.safe, backgroundColor: colors.safeSoft }]}>
               <Ionicons 
                 name={justSaved === 'stopped' ? 'alert-circle' : 'checkmark-circle'} 
                 size={20} 
-                color={justSaved === 'stopped' ? '#ff5252' : '#00e676'} 
+                color={justSaved === 'stopped' ? colors.danger : colors.safe} 
                 style={{ marginRight: 8 }}
               />
-              <Text style={[styles.savedText, justSaved === 'stopped' && { color: '#ff5252' }]}>
+              <Text style={[styles.savedText, { color: justSaved === 'stopped' ? colors.danger : colors.safe }]}>
                 {justSaved === 'stopped' 
                   ? 'Session saved and flagged for joint discomfort.'
                   : `Session saved successfully (${PAIN_LABEL[justSaved].toLowerCase()}).`}
@@ -373,36 +395,53 @@ const styles = StyleSheet.create({
   activeHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     width: '100%',
-    position: 'relative',
+    height: 48,
+    marginBottom: 8,
   },
   activeLabel: {
-    color: '#00e5ff',
-    fontSize: 9,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 1.5,
   },
   exerciseName: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginTop: 6,
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 26,
   },
   themeBtn: {
-    position: 'absolute',
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  backIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
 
   gaugeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 16,
+    marginVertical: 20,
   },
   svgWrapper: {
     position: 'relative',
@@ -417,37 +456,37 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   angleText: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: '900',
   },
   angleLabel: {
-    fontSize: 9,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
-    marginTop: 2,
+    marginTop: 4,
   },
 
   feedbackBox: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     alignItems: 'center',
     marginBottom: 24,
   },
   feedbackBoxWarn: {
-    borderColor: '#ff5252',
-    backgroundColor: 'rgba(255, 82, 82, 0.05)',
+    borderColor: '#D64545',
+    backgroundColor: 'rgba(214, 69, 69, 0.05)',
   },
   feedbackText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'center',
   },
   feedbackTextWarn: {
-    color: '#ff5252',
+    color: '#D64545',
   },
   feedbackSubText: {
-    fontSize: 11,
+    fontSize: 13,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -456,17 +495,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
+    gap: 12,
   },
   statCard: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
     alignItems: 'center',
-    marginHorizontal: 4,
   },
   statLabel: {
-    fontSize: 9,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -477,45 +516,45 @@ const styles = StyleSheet.create({
   },
 
   controls: {
-    paddingHorizontal: 4,
+    gap: 12,
   },
   btnPrimary: {
-    backgroundColor: '#00e5ff',
-    paddingVertical: 16,
-    borderRadius: 12,
+    minHeight: 52,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   btnPrimaryText: {
-    color: '#0b0e11',
-    fontWeight: '800',
-    fontSize: 15.5,
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 16,
   },
   btnStop: {
-    borderWidth: 1.5,
-    borderColor: '#ff5252',
-    backgroundColor: 'transparent',
-    paddingVertical: 16,
-    borderRadius: 12,
+    borderWidth: 2,
+    minHeight: 52,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   btnStopText: {
-    color: '#ff5252',
-    fontWeight: '800',
-    fontSize: 15.5,
+    fontWeight: '900',
+    fontSize: 16,
   },
 
   onboardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     width: '100%',
-    position: 'relative',
-    marginBottom: 20,
+    height: 48,
+    marginBottom: 24,
   },
   brandHeader: {
     fontSize: 16,
@@ -523,76 +562,81 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   onboardingCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   onboardIcon: { alignSelf: 'center', marginBottom: 12 },
-  onboardTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
-  onboardSub: { fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
+  onboardTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
+  onboardSub: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
   
   step: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingRight: 8 },
   stepNum: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  stepNumText: { color: '#00e5ff', fontSize: 11, fontWeight: '800' },
-  stepText: { fontSize: 12.5, lineHeight: 18, flex: 1 },
+  stepNumText: { fontSize: 13, fontWeight: '800' },
+  stepText: { fontSize: 14, lineHeight: 20, flex: 1 },
 
   btnStart: {
-    backgroundColor: '#00e5ff',
-    paddingVertical: 16,
-    borderRadius: 12,
+    minHeight: 52,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  btnStartText: { color: '#0b0e11', fontWeight: '800', fontSize: 15.5 },
-  btnStartLoading: { opacity: 0.55 },
-  planLine: { fontSize: 12.5, fontWeight: '700', textAlign: 'center', marginBottom: 2 },
-  planSource: { fontSize: 10.5, textAlign: 'center', marginBottom: 10 },
-  onboardHint: { fontSize: 10.5, lineHeight: 16, textAlign: 'center' },
-  statTarget: { fontSize: 16, fontWeight: '700' },
+  btnStartText: { color: '#FFFFFF', fontWeight: '900', fontSize: 16 },
+  onboardHint: { fontSize: 13, lineHeight: 18, textAlign: 'center' },
 
   savedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 230, 118, 0.08)',
     borderWidth: 1,
-    borderColor: '#00e676',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 14,
     marginTop: 20,
   },
-  savedBannerWarn: {
-    backgroundColor: 'rgba(255, 82, 82, 0.08)',
-    borderColor: '#ff5252',
-  },
-  savedText: { color: '#00e676', fontSize: 12, fontWeight: '600', flex: 1 },
+  savedText: { fontSize: 13, fontWeight: '800', flex: 1, lineHeight: 18 },
 
   questionnaireCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     padding: 24,
     marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 5,
   },
-  questionTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
-  questionSub: { fontSize: 12.5, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
+  questionTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
+  questionSub: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
   painBtn: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingVertical: 16,
+    minHeight: 52,
+    justifyContent: 'center',
     paddingHorizontal: 20,
     marginBottom: 12,
   },
   painBtnContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  painBtnText: { fontSize: 14, fontWeight: '800' },
-  btnGhost: { alignSelf: 'center', marginTop: 10, paddingVertical: 8 },
-  btnGhostText: { fontSize: 13, fontWeight: '700' },
+  painBtnText: { fontSize: 16, fontWeight: '800' },
+  btnGhost: { alignSelf: 'center', marginTop: 10, paddingVertical: 12, minHeight: 44, justifyContent: 'center' },
+  btnGhostText: { fontSize: 14, fontWeight: '800' },
 });

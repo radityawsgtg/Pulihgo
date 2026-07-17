@@ -1,15 +1,8 @@
 // src/screens/SummaryScreen.tsx
-// OWNER: Radit (taken over from Sulthan) · STATUS: ✅ working
-//
-// Redesigned to match a premium Whoop app post-workout summary.
-// Displays detailed metrics grid, animated circular smoothness gauge,
-// a highly structured, medical-grade physical therapy report card,
-// theme toggles, and dynamic styling colors.
-
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Dimensions, Animated, Easing, Pressable } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
-import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -48,7 +41,7 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Determine percentages for animation. If stopped for pain, display a full (100%) red indicator gauge
+  // Determine percentages for animation
   const smoothnessPercent = last ? Math.round(last.avgSmoothness * 100) : 0;
   const finalPercent = last && last.pain === 'stopped' ? 100 : smoothnessPercent;
 
@@ -68,22 +61,26 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
   // Dynamic colors based on active theme
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#0b0e11' : '#f0f2f5',
-    cardBg: isDark ? '#121417' : '#ffffff',
-    cardBorder: isDark ? '#1c1f22' : '#e2e8f0',
-    title: isDark ? '#ffffff' : '#0b0e11',
-    body: isDark ? '#8e9aa0' : '#64748b',
-    highlight: isDark ? '#cfe6ea' : '#334155',
-    borderStyle: isDark ? '#1c1f22' : '#e2e8f0',
+    bg: isDark ? '#0b0e11' : '#FAFAF7',
+    cardBg: isDark ? '#121417' : '#FFFFFF',
+    cardBorder: isDark ? '#1c1f22' : '#E2E4DE',
+    title: isDark ? '#FFFFFF' : '#1A1D1A',
+    body: isDark ? '#8e9aa0' : '#5B5F58',
+    highlight: isDark ? '#cfe6ea' : '#1A1D1A',
+    borderStyle: isDark ? '#1c1f22' : '#E2E4DE',
+    accent: isDark ? '#00C2C2' : '#0E7C7B',
+    safe: isDark ? '#00e676' : '#1E9E5A',
+    caution: isDark ? '#ffb020' : '#C77800',
+    danger: isDark ? '#ff5252' : '#D64545',
   };
 
   if (!last) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.bg }]}>
-        <Ionicons name="stats-chart-outline" size={60} color={isDark ? "#3a424a" : "#cbd5e1"} style={styles.emptyIcon} />
+        <Ionicons name="stats-chart-outline" size={60} color={isDark ? "#3a424a" : "#E2E4DE"} style={styles.emptyIcon} />
         <Text style={[styles.emptyTitle, { color: colors.title }]}>No sessions yet</Text>
         <Text style={[styles.emptyText, { color: colors.body }]}>
-          Finish a forearm rotation exercise to see your session analytics and coach insight here.
+          Finish an exercise to see your session analytics and coach insight here.
         </Text>
       </View>
     );
@@ -95,51 +92,51 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
   });
 
   // Gauge color based on smoothness and pain logs
-  let gaugeColor = "#00e676"; // green
+  let gaugeColor = colors.safe;
   if (last.pain === 'stopped') {
-    gaugeColor = "#ff5252"; // red if stopped for pain
+    gaugeColor = colors.danger;
   } else if (last.avgSmoothness < 0.6) {
-    gaugeColor = "#ffb020"; // orange if shaky
+    gaugeColor = colors.caution;
   } else if (last.avgSmoothness < 0.8) {
-    gaugeColor = "#00e5ff"; // cyan for good
+    gaugeColor = colors.accent;
   }
 
-  // Detailed clinical report card generator (replaces generic AI filler copy)
-  let feedbackTitle = "Optimal Practice Quality";
-  let feedbackColor = "#00e676";
-  let feedbackIcon = "checkmark-circle-outline";
-  let assessment = "";
-  let neuroImpact = "";
-  let nextCue = "";
+  // Simplified 1-sentence explanations
+  let feedbackTitle = 'Optimal Practice Quality';
+  let feedbackColor = colors.safe;
+  let feedbackIcon: keyof typeof Ionicons.glyphMap = 'checkmark-circle-outline';
+  let assessment = '';
+  let neuroImpact = '';
+  let nextCue = '';
 
   if (last.pain === 'stopped') {
-    feedbackTitle = "Discomfort Hold Triggered";
-    feedbackColor = "#ff5252";
-    feedbackIcon = "alert-circle-outline"; // FIXED warning icon name
-    assessment = "Practice session was suspended due to acute physical joint discomfort.";
-    neuroImpact = "Stopping immediately when joint pain is felt avoids tissue strain and neural guarding (spasm reflex), which protects your motor coordination long term.";
-    nextCue = "Rest the affected limb. In your next session, adjust your focus to extremely slow rotation sweeps and restrict your movement strictly within a pain-free range (e.g. 30°-45°).";
+    feedbackTitle = 'Discomfort Hold Triggered';
+    feedbackColor = colors.danger;
+    feedbackIcon = 'alert-circle-outline';
+    assessment = 'You stopped due to pain — rest the arm for now.';
+    neuroImpact = 'Stopping for pain prevents muscle spasm and joint strain.';
+    nextCue = 'Rest, then try extremely small, gentle movements next session.';
   } else if (last.peakRomDeg > 90) {
-    feedbackTitle = "Ceiling Warning: Hyperextension";
-    feedbackColor = "#ffb020";
-    feedbackIcon = "warning-outline";
-    assessment = `You rotated to a peak ROM of ${last.peakRomDeg.toFixed(0)}°, which exceeds the safe ceiling limit threshold of 90°.`;
-    neuroImpact = "Excessive rotation during early subacute phases can cause ligament laxity and joint subluxation, particularly when surrounding stabilizing muscles are weak.";
-    nextCue = "For your next session, prioritize safety by restricting your rotation below 90°. Focus on movement control at a moderate 65°-70° rather than maximum range.";
+    feedbackTitle = 'Ceiling Warning';
+    feedbackColor = colors.caution;
+    feedbackIcon = 'warning-outline';
+    assessment = 'You moved past the safe ceiling limit.';
+    neuroImpact = 'Moving too far too early can cause joint strain.';
+    nextCue = 'Keep your movement smaller next session, focusing on control.';
   } else if (last.avgSmoothness < 0.60) {
-    feedbackTitle = "Coordination Alert: Tremor";
-    feedbackColor = "#ffb020";
-    feedbackIcon = "pulse-outline";
-    assessment = `Rotation was performed with a smoothness of ${smoothnessPercent}%, indicating active muscle hitching or tremor.`;
-    neuroImpact = "Rapid or jerky rotations recruit secondary compensatory muscle groups (e.g. shoulder hiking) instead of isolating the primary forearm rotator muscles.";
-    nextCue = "Slow down. Tuck your elbow tightly into your side to isolate the rotation, and perform each repetition at half your current speed.";
+    feedbackTitle = 'Coordination Alert';
+    feedbackColor = colors.caution;
+    feedbackIcon = 'pulse-outline';
+    assessment = 'Your movement was a bit shaky today.';
+    neuroImpact = 'Jerky movements recruit wrong muscles and reduce practice quality.';
+    nextCue = 'Slow down and focus on clean, steady movements.';
   } else {
-    feedbackTitle = "Optimal Practice Quality";
-    feedbackColor = "#00e676";
-    feedbackIcon = "ribbon-outline";
-    assessment = `Rotations completed successfully with high fluid coordination (${smoothnessPercent}% smoothness) and a safe range of ${last.peakRomDeg.toFixed(0)}°.`;
-    neuroImpact = "Smooth, slow rotations optimize the brain's motor cortex remodeling, strengthening the synaptic pathways linking intention to execution.";
-    nextCue = "Maintain this exact motion velocity. Focus on adding a brief 1-second pause at the peak of your next forearm rotation set.";
+    feedbackTitle = 'Optimal Practice Quality';
+    feedbackColor = colors.safe;
+    feedbackIcon = 'ribbon-outline';
+    assessment = 'Excellent, smooth practice session today.';
+    neuroImpact = 'Controlled movement strengthens clean brain-to-muscle pathways.';
+    nextCue = 'Keep up this steady pace in your next practice.';
   }
 
   const painTextMap = {
@@ -149,23 +146,23 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
     unknown: 'Not asked',
   };
 
-  // Whoop-style comparison bar calculation
+  // Comparison bar calculation
   let showBar = false;
   let barSafeWidth = 0;
   let barWarnWidth = 0;
   let barMarkerPosition = 0;
-  let barValueText = "";
-  let barLabelText = "";
-  let barFooterLeft = "";
-  let barFooterRight = "";
-  let barFooterMarker = "";
+  let barValueText = '';
+  let barLabelText = '';
+  let barFooterLeft = '';
+  let barFooterRight = '';
+  let barFooterMarker = '';
   let showWarningStats = false;
-  let statVal1 = "";
-  let statVal2 = "";
-  let statVal3 = "";
-  let statLbl1 = "";
-  let statLbl2 = "";
-  let statLbl3 = "";
+  let statVal1 = '';
+  let statVal2 = '';
+  let statVal3 = '';
+  let statLbl1 = '';
+  let statLbl2 = '';
+  let statLbl3 = '';
   let statVal1Color = colors.title;
   let statVal3Color = colors.title;
 
@@ -173,66 +170,64 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
     if (last.peakRomDeg > 90) {
       showBar = true;
       const peak = last.peakRomDeg;
-      // safe up to 90
       barSafeWidth = (Math.min(peak, 90) / 120) * 100;
       barWarnWidth = peak > 90 ? ((peak - 90) / 120) * 100 : 0;
       barMarkerPosition = 75; // (90 / 120) * 100
       barValueText = `${peak.toFixed(0)}° / 90° limit`;
-      barLabelText = "PEAK ROTATION RANGE";
-      barFooterLeft = "0°";
-      barFooterMarker = "90° LIMIT";
-      barFooterRight = "120°";
+      barLabelText = 'PEAK ROTATION RANGE';
+      barFooterLeft = '0°';
+      barFooterMarker = '90° LIMIT';
+      barFooterRight = '120°';
       
       showWarningStats = true;
       statVal1 = `${peak.toFixed(0)}°`;
-      statVal2 = "90°";
+      statVal2 = '90°';
       statVal3 = `+${(peak - 90).toFixed(0)}°`;
-      statLbl1 = "PEAK ROTATION";
-      statLbl2 = "SAFE LIMIT";
-      statLbl3 = "OVER LIMIT";
-      statVal1Color = "#ff5252"; // red
-      statVal3Color = "#ffb020"; // orange
+      statLbl1 = 'PEAK ROTATION';
+      statLbl2 = 'SAFE LIMIT';
+      statLbl3 = 'OVER LIMIT';
+      statVal1Color = colors.danger;
+      statVal3Color = colors.caution;
     } else if (last.pain === 'stopped') {
       showBar = true;
       barSafeWidth = 0;
-      barWarnWidth = 100; // full red bar
-      barValueText = "SAFETY HALT TRIGGERED";
-      barLabelText = "DISCOMFORT LEVEL";
-      barFooterLeft = "COMFORTABLE";
-      barFooterRight = "MAX DISCOMFORT";
+      barWarnWidth = 100;
+      barValueText = 'SAFETY HALT';
+      barLabelText = 'DISCOMFORT LEVEL';
+      barFooterLeft = 'COMFORTABLE';
+      barFooterRight = 'MAX PAIN';
       
       showWarningStats = true;
-      statVal1 = "HALT";
+      statVal1 = 'HALT';
       statVal2 = `${last.reps.length}`;
       statVal3 = `${last.peakRomDeg.toFixed(0)}°`;
-      statLbl1 = "SAFETY STATUS";
-      statLbl2 = "REPS COMPLETED";
-      statLbl3 = "PEAK ANGLE";
-      statVal1Color = "#ff5252";
+      statLbl1 = 'SAFETY STATUS';
+      statLbl2 = 'REPS COMPLETED';
+      statLbl3 = 'PEAK ANGLE';
+      statVal1Color = colors.danger;
     } else {
-      // Show smoothness progress bar
       showBar = true;
       barSafeWidth = smoothnessPercent;
       barWarnWidth = 0;
       barValueText = `${smoothnessPercent}%`;
-      barLabelText = "MOVEMENT SMOOTHNESS";
-      barFooterLeft = "0%";
-      barFooterMarker = "80% TARGET";
+      barLabelText = 'MOVEMENT SMOOTHNESS';
+      barFooterLeft = '0%';
+      barFooterMarker = '80% TARGET';
       barMarkerPosition = 80;
-      barFooterRight = "100%";
+      barFooterRight = '100%';
       
       showWarningStats = true;
       statVal1 = `${last.reps.length}`;
       statVal2 = `${last.peakRomDeg.toFixed(0)}°`;
       statVal3 = `${smoothnessPercent}%`;
-      statLbl1 = "TOTAL REPS";
-      statLbl2 = "PEAK ROM";
-      statLbl3 = "SMOOTHNESS";
-      statVal3Color = smoothnessPercent >= 80 ? '#00e676' : (smoothnessPercent >= 60 ? '#00e5ff' : '#ffb020');
+      statLbl1 = 'TOTAL REPS';
+      statLbl2 = 'PEAK ROM';
+      statLbl3 = 'SMOOTHNESS';
+      statVal3Color = smoothnessPercent >= 80 ? colors.safe : (smoothnessPercent >= 60 ? colors.accent : colors.caution);
     }
   }
 
-  // Whoop-style chart configurations
+  // Chart configs
   const chartWidth = Dimensions.get('window').width - 72;
   const chartHeight = 160;
   const paddingTop = 15;
@@ -240,167 +235,97 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
   const paddingLeft = 30;
   const paddingRight = 30;
 
-  const reps = last ? (last.reps || []) : [];
-  const numReps = reps.length;
+  const repsList = last.reps || [];
+  const numReps = repsList.length;
   
-  let romPoints = "";
-  let smoothnessPoints = "";
+  let romPoints = '';
+  let smoothnessPoints = '';
   
-  const maxValROM = reps.length ? Math.max(100, ...reps.map(r => r.peakRomDeg), 90) : 100;
+  const maxValROM = repsList.length ? Math.max(100, ...repsList.map((r) => r.peakRomDeg), 90) : 100;
   const plotWidth = chartWidth - paddingLeft - paddingRight;
   const plotHeight = chartHeight - paddingTop - paddingBottom;
-  
-  const romNodeCoords: {x: number, y: number, val: number}[] = [];
-  const smoothNodeCoords: {x: number, y: number, val: number}[] = [];
 
-  if (numReps > 0) {
-    reps.forEach((r, idx) => {
-      const x = paddingLeft + (numReps > 1 ? (idx / (numReps - 1)) * plotWidth : plotWidth / 2);
-      const yRom = chartHeight - paddingBottom - (r.peakRomDeg / maxValROM) * plotHeight;
-      romNodeCoords.push({ x, y: yRom, val: r.peakRomDeg });
-      
-      const sVal = Math.min(1, Math.max(0, r.smoothness));
-      const ySmooth = chartHeight - paddingBottom - sVal * plotHeight;
-      smoothNodeCoords.push({ x, y: ySmooth, val: sVal });
-    });
+  const romDots: { x: number; y: number }[] = [];
+  const smoothDots: { x: number; y: number }[] = [];
+
+  repsList.forEach((r, idx) => {
+    const x = paddingLeft + (idx / Math.max(1, numReps - 1)) * plotWidth;
     
-    romPoints = romNodeCoords.map(n => `${n.x},${n.y}`).join(" ");
-    smoothnessPoints = smoothNodeCoords.map(n => `${n.x},${n.y}`).join(" ");
-  }
+    // ROM mapping
+    const yRom = paddingTop + plotHeight - (r.peakRomDeg / maxValROM) * plotHeight;
+    romDots.push({ x, y: yRom });
+    romPoints += `${idx === 0 ? '' : ' '}${x},${yRom}`;
 
-  const gridLines = [0.25, 0.5, 0.75].map(ratio => {
-    const y = chartHeight - paddingBottom - ratio * plotHeight;
-    return y;
+    // Smoothness mapping
+    const ySmooth = paddingTop + plotHeight - r.smoothness * plotHeight;
+    smoothDots.push({ x, y: ySmooth });
+    smoothnessPoints += `${idx === 0 ? '' : ' '}${x},${ySmooth}`;
   });
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scroll}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>POST-SESSION ANALYTICS</Text>
-        <View style={styles.headerTitleRow}>
-          <Text style={[styles.title, { color: colors.title }]}>Session Summary</Text>
-          <Pressable onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={14} color={colors.title} />
-          </Pressable>
+        <View style={styles.headerTitleContainer}>
+          <Text style={[styles.kicker, { color: colors.accent }]}>POST SESSION</Text>
+          <Text style={[styles.title, { color: colors.title }]}>Summary Report</Text>
+          <Text style={[styles.timestamp, { color: colors.body }]}>{when(last.endedAt)}</Text>
         </View>
-        <Text style={[styles.when, { color: colors.body }]}>{when(last.startedAt)}</Text>
+        <Pressable
+          onPress={toggleTheme}
+          style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle Theme"
+        >
+          <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.title} />
+        </Pressable>
       </View>
 
-      {/* SVG Smoothness Gauge */}
-      <View style={styles.gaugeSection}>
-        <View style={styles.svgWrapper}>
-          <Svg width={size} height={size}>
-            <Circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke={isDark ? '#1c1f22' : '#e2e8f0'}
-              strokeWidth={strokeWidth}
-              fill="transparent"
-            />
-            <AnimatedCircle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke={gaugeColor}
-              strokeWidth={strokeWidth}
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              fill="transparent"
-              transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            />
-          </Svg>
-          <View style={styles.gaugeValueWrapper}>
-            <Text style={[styles.gaugeValue, { color: colors.title }, last.pain === 'stopped' && { color: '#ff5252' }]}>
-              {last.pain === 'stopped' ? 'STOP' : `${smoothnessPercent}%`}
-            </Text>
-            <Text style={[styles.gaugeLabel, { color: colors.body }]}>
-              {last.pain === 'stopped' ? 'DISCOMFORT' : 'SMOOTHNESS'}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Whoop-style Session Repetition Chart Card */}
-      <View style={[styles.chartCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-        <View style={styles.chartHeader}>
-          <Text style={[styles.chartTitle, { color: colors.title }]}>Repetition Analysis</Text>
-          <Text style={[styles.chartSub, { color: colors.body }]}>Peak ROM vs. Movement Smoothness</Text>
-        </View>
-        
-        {/* SVG Drawing */}
-        <View style={{ width: '100%', height: chartHeight, position: 'relative' }}>
-          {numReps === 0 ? (
-            <View style={styles.emptyChartOverlay}>
-              <Text style={{ color: colors.body, fontSize: 11 }}>No repetitions logged in this session.</Text>
-            </View>
-          ) : (
-            <Svg width={chartWidth} height={chartHeight}>
-              {/* Horizontal grid lines */}
-              {gridLines.map((y, idx) => (
-                <Line key={idx} x1={paddingLeft} y1={y} x2={chartWidth - paddingRight} y2={y} stroke="rgba(142, 154, 160, 0.1)" strokeWidth={1} strokeDasharray="3 3" />
-              ))}
-              
-              {/* Vertical grids for reps */}
-              {romNodeCoords.map((n, idx) => (
-                <Line key={idx} x1={n.x} y1={paddingTop} x2={n.x} y2={chartHeight - paddingBottom} stroke="rgba(142, 154, 160, 0.05)" strokeWidth={1} />
-              ))}
-              
-              {/* Left Y Axis label */}
-              <SvgText x={10} y={chartHeight - paddingBottom} fill={colors.body} fontSize={8} fontWeight="bold">0°</SvgText>
-              <SvgText x={10} y={chartHeight - paddingBottom - 0.5 * plotHeight + 3} fill={colors.body} fontSize={8} fontWeight="bold">{(maxValROM / 2).toFixed(0)}°</SvgText>
-              <SvgText x={10} y={paddingTop + 3} fill={colors.body} fontSize={8} fontWeight="bold">{(maxValROM).toFixed(0)}°</SvgText>
-              
-              {/* Right Y Axis label */}
-              <SvgText x={chartWidth - 25} y={chartHeight - paddingBottom} fill={colors.body} fontSize={8} fontWeight="bold">0%</SvgText>
-              <SvgText x={chartWidth - 25} y={chartHeight - paddingBottom - 0.5 * plotHeight + 3} fill={colors.body} fontSize={8} fontWeight="bold">50%</SvgText>
-              <SvgText x={chartWidth - 25} y={paddingTop + 3} fill={colors.body} fontSize={8} fontWeight="bold">100%</SvgText>
-              
-              {/* X Axis labels (R1, R2...) */}
-              {romNodeCoords.map((n, idx) => (
-                <SvgText key={idx} x={n.x} y={chartHeight - 4} fill={colors.body} fontSize={8} textAnchor="middle" fontWeight="bold">R{idx + 1}</SvgText>
-              ))}
-              
-              {/* Lines */}
-              {romPoints ? <Polyline points={romPoints} fill="none" stroke="#00e5ff" strokeWidth={2.5} /> : null}
-              {smoothnessPoints ? <Polyline points={smoothnessPoints} fill="none" stroke="#00e676" strokeWidth={2.5} /> : null}
-              
-              {/* ROM dots */}
-              {romNodeCoords.map((n, idx) => (
-                <Circle key={idx} cx={n.x} cy={n.y} r={4.5} fill="#00e5ff" stroke={colors.cardBg} strokeWidth={1.5} />
-              ))}
-              
-              {/* Smoothness dots */}
-              {smoothNodeCoords.map((n, idx) => (
-                <Circle key={idx} cx={n.x} cy={n.y} r={4.5} fill="#00e676" stroke={colors.cardBg} strokeWidth={1.5} />
-              ))}
+      {/* Main Fluid Gauge Card */}
+      <View style={[styles.mainReportCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+        <View style={styles.gaugeContainer}>
+          <View style={styles.svgWrapper}>
+            <Svg width={size} height={size}>
+              <Circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={isDark ? '#1c1f22' : '#E2E4DE'}
+                strokeWidth={strokeWidth}
+                fill="transparent"
+              />
+              <AnimatedCircle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                stroke={gaugeColor}
+                strokeWidth={strokeWidth}
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="transparent"
+                transform={`rotate(-90 ${size / 2} ${size / 2})`}
+              />
             </Svg>
-          )}
-        </View>
-
-        {/* Legend */}
-        <View style={styles.chartLegend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#00e5ff' }]} />
-            <Text style={[styles.legendLabel, { color: colors.title }]}>Peak ROM (Deg)</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#00e676' }]} />
-            <Text style={[styles.legendLabel, { color: colors.title }]}>Smoothness (%)</Text>
+            <View style={styles.gaugeTextWrapper}>
+              <Ionicons name={feedbackIcon} size={30} color={feedbackColor} style={{ marginBottom: 4 }} />
+              <Text style={[styles.gaugeValText, { color: colors.title }]}>
+                {last.pain === 'stopped' ? 'HALT' : `${smoothnessPercent}%`}
+              </Text>
+              <Text style={[styles.gaugeLabel, { color: colors.body }]}>
+                {last.pain === 'stopped' ? 'PAIN STOP' : 'SMOOTHNESS'}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Upgraded Clinical Coach Card */}
-      <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+        {/* Coach Banner */}
         <View style={styles.coachHeader}>
-          <Ionicons name={feedbackIcon as any} size={20} color={feedbackColor} style={styles.coachIcon} />
+          <Ionicons name="ribbon-outline" size={24} color={feedbackColor} style={styles.coachIcon} />
           <Text style={[styles.coachTitle, { color: colors.title }]}>{feedbackTitle}</Text>
         </View>
 
-        {/* Dynamic Comparison Bar (Whoop/Sleep Ranges Style) */}
+        {/* Dynamic Comparison Bar */}
         {showBar && (
           <View style={styles.warningBarContainer}>
             <View style={styles.warningBarHeader}>
@@ -408,12 +333,12 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
               <Text style={[styles.warningBarValue, { color: feedbackColor }]}>{barValueText}</Text>
             </View>
             
-            <View style={[styles.warningBarTrack, { backgroundColor: isDark ? '#1c1f22' : '#e2e8f0' }]}>
+            <View style={[styles.warningBarTrack, { backgroundColor: isDark ? '#1c1f22' : '#E2E4DE' }]}>
               {barSafeWidth > 0 && (
-                <View style={[styles.warningBarSafe, { width: `${barSafeWidth}%`, backgroundColor: last.avgSmoothness < 0.6 ? '#ffb020' : '#00e676' }]} />
+                <View style={[styles.warningBarSafe, { width: `${barSafeWidth}%`, backgroundColor: last.avgSmoothness < 0.6 ? colors.caution : colors.safe }]} />
               )}
               {barWarnWidth > 0 && (
-                <View style={[styles.warningBarExceeded, { width: `${barWarnWidth}%` }]} />
+                <View style={[styles.warningBarExceeded, { width: `${barWarnWidth}%`, backgroundColor: colors.danger }]} />
               )}
               {barMarkerPosition > 0 && (
                 <View style={[styles.warningBarLimitMarker, { left: `${barMarkerPosition}%` }]} />
@@ -430,7 +355,7 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
           </View>
         )}
 
-        {/* Dynamic Summary Stats Grid (Whoop Stats Style) */}
+        {/* Dynamic Summary Stats Grid */}
         {showWarningStats && (
           <View style={[styles.warningStatsGrid, { borderColor: colors.borderStyle }]}>
             <View style={styles.warningStatCol}>
@@ -450,10 +375,10 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
           </View>
         )}
 
-        {/* Structured Medical Sections */}
+        {/* Simplified 1-Sentence Insight Sections */}
         <View style={styles.insightSection}>
           <View style={styles.insightSectionHeader}>
-            <Ionicons name="pulse" size={14} color={feedbackColor} style={{ marginRight: 6 }} />
+            <Ionicons name="pulse" size={16} color={feedbackColor} style={{ marginRight: 8 }} />
             <Text style={[styles.reportSectionLabel, { color: colors.body }]}>CLINICAL ASSESSMENT</Text>
           </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{assessment}</Text>
@@ -461,7 +386,7 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
 
         <View style={styles.insightSection}>
           <View style={styles.insightSectionHeader}>
-            <Ionicons name="git-network-outline" size={14} color={feedbackColor} style={{ marginRight: 6 }} />
+            <Ionicons name="git-network-outline" size={16} color={feedbackColor} style={{ marginRight: 8 }} />
             <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEUROLOGICAL IMPACT</Text>
           </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{neuroImpact}</Text>
@@ -469,10 +394,56 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
 
         <View style={styles.insightSection}>
           <View style={styles.insightSectionHeader}>
-            <Ionicons name="flag-outline" size={14} color="#00e5ff" style={{ marginRight: 6 }} />
+            <Ionicons name="flag-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
             <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEXT PRACTICE CUE</Text>
           </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{nextCue}</Text>
+        </View>
+      </View>
+
+      {/* Repetition Analysis Chart */}
+      <View style={[styles.chartCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+        <View style={styles.chartHeader}>
+          <Text style={[styles.chartTitle, { color: colors.title }]}>Repetition Analysis</Text>
+          <Text style={[styles.chartSub, { color: colors.body }]}>Shows ROM (teal) and smoothness (green) per rep.</Text>
+        </View>
+
+        {repsList.length > 0 ? (
+          <View style={{ width: chartWidth, height: chartHeight }}>
+            <Svg width={chartWidth} height={chartHeight}>
+              {/* Horizontal Grid lines */}
+              <Line x1={paddingLeft} y1={paddingTop} x2={chartWidth - paddingRight} y2={paddingTop} stroke={colors.borderStyle} strokeWidth="1" strokeDasharray="3 3" />
+              <Line x1={paddingLeft} y1={paddingTop + plotHeight / 2} x2={chartWidth - paddingRight} y2={paddingTop + plotHeight / 2} stroke={colors.borderStyle} strokeWidth="1" strokeDasharray="3 3" />
+              <Line x1={paddingLeft} y1={paddingTop + plotHeight} x2={chartWidth - paddingRight} y2={paddingTop + plotHeight} stroke={colors.borderStyle} strokeWidth="1" strokeDasharray="3 3" />
+              
+              {/* Paths */}
+              {romPoints ? <Polyline points={romPoints} fill="none" stroke={colors.accent} strokeWidth="2.5" /> : null}
+              {smoothnessPoints ? <Polyline points={smoothnessPoints} fill="none" stroke={colors.safe} strokeWidth="2.5" /> : null}
+              
+              {/* Dots */}
+              {romDots.map((dot, i) => (
+                <Circle key={`rom-${i}`} cx={dot.x} cy={dot.y} r="4" fill={colors.accent} stroke={colors.cardBg} strokeWidth="1.5" />
+              ))}
+              {smoothDots.map((dot, i) => (
+                <Circle key={`smooth-${i}`} cx={dot.x} cy={dot.y} r="4" fill={colors.safe} stroke={colors.cardBg} strokeWidth="1.5" />
+              ))}
+            </Svg>
+          </View>
+        ) : (
+          <View style={[styles.emptyChartOverlay, { width: chartWidth, height: chartHeight }]}>
+            <Text style={{ color: colors.body, fontSize: 13 }}>No repetitions completed</Text>
+          </View>
+        )}
+
+        <View style={styles.chartLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.accent }]} />
+            <Text style={[styles.legendLabel, { color: colors.title }]}>Peak ROM</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.safe }]} />
+            <Text style={[styles.legendLabel, { color: colors.title }]}>Smoothness</Text>
+          </View>
         </View>
       </View>
 
@@ -495,9 +466,9 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
           <Text style={[styles.metricLabel, { color: colors.body }]}>JOINT COMFORT</Text>
           <Text style={[
             styles.metricValue, 
-            last.pain === 'none' && { color: '#00e676' },
-            last.pain === 'mild' && { color: '#ffb020' },
-            last.pain === 'stopped' && { color: '#ff5252' }
+            last.pain === 'none' && { color: colors.safe },
+            last.pain === 'mild' && { color: colors.caution },
+            last.pain === 'stopped' && { color: colors.danger }
           ]}>
             {painTextMap[last.pain]}
           </Text>
@@ -505,10 +476,10 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
       </View>
 
       {last.pain === 'stopped' && (
-        <View style={[styles.stoppedNoteBox, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-          <Ionicons name="shield-checkmark" size={16} color={colors.body} style={{ marginRight: 8 }} />
-          <Text style={[styles.stoppedNoteText, { color: colors.body }]}>
-            Stopping due to discomfort is the right clinical decision and holds your streak consistency.
+        <View style={[styles.stoppedNoteBox, { backgroundColor: colors.cardBg, borderColor: colors.danger }]}>
+          <Ionicons name="alert-circle-outline" size={24} color={colors.danger} style={{ marginRight: 8 }} />
+          <Text style={[styles.stoppedNoteText, { color: colors.title }]}>
+            This session ended early due to pain. Ensure you rest the limb before next practice.
           </Text>
         </View>
       )}
@@ -521,87 +492,92 @@ const styles = StyleSheet.create({
   scroll: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 40 },
   
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    position: 'relative',
-    width: '100%',
+    height: 64,
   },
-  headerLabel: {
-    color: '#00e5ff',
-    fontSize: 9,
+  headerTitleContainer: {
+    flex: 1,
+  },
+  kicker: {
+    fontSize: 13,
     fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    position: 'relative',
-    marginTop: 4,
+    letterSpacing: 2,
   },
   title: {
     fontSize: 22,
     fontWeight: '900',
+    marginTop: 2,
+  },
+  timestamp: {
+    fontSize: 13,
+    marginTop: 2,
   },
   themeBtn: {
-    position: 'absolute',
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  when: {
-    fontSize: 11.5,
-    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
 
-  gaugeSection: {
+  mainReportCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  gaugeContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginVertical: 12,
   },
   svgWrapper: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gaugeValueWrapper: {
+  gaugeTextWrapper: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     height: '100%',
   },
-  gaugeValue: {
-    fontSize: 28,
+  gaugeValText: {
+    fontSize: 32,
     fontWeight: '900',
   },
   gaugeLabel: {
-    fontSize: 8.5,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
-    marginTop: 4,
+    marginTop: 2,
   },
 
-  coachCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-  },
   coachHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginVertical: 16,
   },
   coachIcon: { marginRight: 8 },
   coachTitle: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
   },
   
   warningBarContainer: {
@@ -615,12 +591,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   warningBarLabel: {
-    fontSize: 9,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   warningBarValue: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
   },
   warningBarTrack: {
@@ -636,14 +612,13 @@ const styles = StyleSheet.create({
   },
   warningBarExceeded: {
     height: '100%',
-    backgroundColor: '#ff5252',
   },
   warningBarLimitMarker: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     width: 2,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
   },
   warningBarFooter: {
     flexDirection: 'row',
@@ -651,7 +626,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   warningBarFooterText: {
-    fontSize: 8.5,
+    fontSize: 13,
     fontWeight: '800',
     flex: 1,
   },
@@ -673,7 +648,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   warningStatLbl: {
-    fontSize: 8,
+    fontSize: 13,
     fontWeight: '800',
     marginTop: 2,
     letterSpacing: 0.5,
@@ -692,32 +667,37 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   reportSectionLabel: {
-    fontSize: 9,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.5,
   },
   reportSectionText: {
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 22,
   },
 
   chartCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
   },
   chartHeader: {
     alignSelf: 'flex-start',
     marginBottom: 16,
   },
   chartTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
   },
   chartSub: {
-    fontSize: 10,
+    fontSize: 13,
     marginTop: 2,
     fontWeight: '600',
   },
@@ -742,18 +722,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
   },
   legendColor: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     marginRight: 6,
   },
   legendLabel: {
-    fontSize: 9.5,
+    fontSize: 13,
     fontWeight: '800',
   },
 
   sectionHeader: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     marginBottom: 12,
     textTransform: 'uppercase',
@@ -763,23 +743,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: 12,
   },
   metricCard: {
     width: '48%',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
     alignItems: 'center',
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
   },
   metricLabel: {
-    fontSize: 8.5,
+    fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   metricValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     textAlign: 'center',
   },
@@ -787,14 +772,14 @@ const styles = StyleSheet.create({
   stoppedNoteBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 12,
     marginTop: 8,
     borderWidth: 1,
   },
   stoppedNoteText: {
-    fontSize: 11.5,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 18,
     flex: 1,
   },
 
@@ -807,5 +792,5 @@ const styles = StyleSheet.create({
   },
   emptyIcon: { marginBottom: 16 },
   emptyTitle: { fontSize: 18, fontWeight: '800', marginBottom: 8 },
-  emptyText: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });

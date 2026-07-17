@@ -1,11 +1,5 @@
 // src/screens/ProgressScreen.tsx
-// OWNER: Radit (taken over from Sulthan) · STATUS: ✅ working
-//
-// Redesigned to match a premium Whoop app dashboard.
-// Incorporates date navigation, animated progress gauges, a flickering streak flame,
-// and a custom interactive Duolingo-style streak modal popout with a large animated CSS flame.
-
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps, dayKey } from '../progress/streak';
@@ -56,8 +50,8 @@ interface RingProps {
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 function CircularProgress({ percentage, color, label, subLabel, theme }: RingProps) {
-  const size = 86;
-  const strokeWidth = 7;
+  const size = 96; // enlarged
+  const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
@@ -78,16 +72,22 @@ function CircularProgress({ percentage, color, label, subLabel, theme }: RingPro
   });
 
   const isDark = theme === 'dark';
+  const colors = {
+    cardBg: isDark ? '#121417' : '#FFFFFF',
+    border: isDark ? '#1c1f22' : '#E2E4DE',
+    title: isDark ? '#FFFFFF' : '#1A1D1A',
+    body: isDark ? '#8e9aa0' : '#5B5F58',
+  };
 
   return (
-    <View style={[styles.ringCard, { backgroundColor: isDark ? '#121417' : '#ffffff', borderColor: isDark ? '#1c1f22' : '#e2e8f0' }]}>
+    <View style={[styles.ringCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
       <View style={styles.svgWrapper}>
         <Svg width={size} height={size}>
           <Circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke={isDark ? '#1c1f22' : '#e2e8f0'}
+            stroke={isDark ? '#1c1f22' : '#E2E4DE'}
             strokeWidth={strokeWidth}
             fill="transparent"
           />
@@ -104,148 +104,51 @@ function CircularProgress({ percentage, color, label, subLabel, theme }: RingPro
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
         </Svg>
-        <View style={styles.ringValueWrapper}>
-          <Text style={[styles.ringValue, { color: isDark ? '#ffffff' : '#0b0e11' }]}>{subLabel}</Text>
+        <View style={styles.ringCenterText}>
+          <Text style={[styles.ringPercent, { color: colors.title }]}>{subLabel}</Text>
         </View>
       </View>
-      <Text style={[styles.ringLabel, { color: isDark ? '#8e9aa0' : '#64748b' }]}>{label}</Text>
-    </View>
-  );
-}
-
-// Flickering flame inside the streak banner card / popup modal (supports size variants and parent clicks)
-function FlickeringFlame({ active, clickCount, size = 'small' }: { active: boolean; clickCount: number; size?: 'small' | 'large' }) {
-  const isLarge = size === 'large';
-  const outerScale = useRef(new Animated.Value(1)).current;
-  const middleScale = useRef(new Animated.Value(1)).current;
-  const flameContainerScale = useRef(new Animated.Value(1)).current;
-
-  const sparks = [
-    { x: useRef(new Animated.Value(0)).current, y: useRef(new Animated.Value(0)).current, opacity: useRef(new Animated.Value(0)).current, color: '#ff5252' },
-    { x: useRef(new Animated.Value(0)).current, y: useRef(new Animated.Value(0)).current, opacity: useRef(new Animated.Value(0)).current, color: '#ffb020' },
-    { x: useRef(new Animated.Value(0)).current, y: useRef(new Animated.Value(0)).current, opacity: useRef(new Animated.Value(0)).current, color: '#ffd700' },
-    { x: useRef(new Animated.Value(0)).current, y: useRef(new Animated.Value(0)).current, opacity: useRef(new Animated.Value(0)).current, color: '#ff5252' },
-    { x: useRef(new Animated.Value(0)).current, y: useRef(new Animated.Value(0)).current, opacity: useRef(new Animated.Value(0)).current, color: '#ffb020' },
-  ];
-
-  useEffect(() => {
-    if (!active) return;
-
-    const outerFlicker = Animated.loop(
-      Animated.sequence([
-        Animated.timing(outerScale, { toValue: 1.08, duration: 250, easing: Easing.linear, useNativeDriver: true }),
-        Animated.timing(outerScale, { toValue: 0.94, duration: 250, easing: Easing.linear, useNativeDriver: true }),
-      ])
-    );
-
-    const middleFlicker = Animated.loop(
-      Animated.sequence([
-        Animated.timing(middleScale, { toValue: 0.88, duration: 180, easing: Easing.linear, useNativeDriver: true }),
-        Animated.timing(middleScale, { toValue: 1.12, duration: 180, easing: Easing.linear, useNativeDriver: true }),
-      ])
-    );
-
-    outerFlicker.start();
-    middleFlicker.start();
-
-    return () => {
-      outerFlicker.stop();
-      middleFlicker.stop();
-    };
-  }, [active]);
-
-  // Listen to clickCount updates to trigger the spring scaling and spark bursts
-  useEffect(() => {
-    if (clickCount === 0) return;
-
-    Animated.sequence([
-      Animated.timing(flameContainerScale, { toValue: 1.45, duration: 100, useNativeDriver: true }),
-      Animated.spring(flameContainerScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
-    ]).start();
-
-    const multiplier = isLarge ? 2.2 : 1;
-    const sparkDestinations = [
-      { x: -28 * multiplier, y: -26 * multiplier },
-      { x: -8 * multiplier, y: -38 * multiplier },
-      { x: 12 * multiplier, y: -34 * multiplier },
-      { x: -22 * multiplier, y: -8 * multiplier },
-      { x: 24 * multiplier, y: -12 * multiplier },
-    ];
-
-    sparks.forEach((s, i) => {
-      s.x.setValue(0);
-      s.y.setValue(0);
-      s.opacity.setValue(1);
-
-      Animated.parallel([
-        Animated.timing(s.x, { toValue: sparkDestinations[i].x, duration: 550, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(s.y, { toValue: sparkDestinations[i].y, duration: 550, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.timing(s.opacity, { toValue: 0, duration: 550, useNativeDriver: true }),
-      ]).start();
-    });
-  }, [clickCount]);
-
-  const flameWidth = isLarge ? 72 : 28;
-  const flameHeight = isLarge ? 72 : 28;
-  const outerSize = isLarge ? 64 : 24;
-  const middleSize = isLarge ? 44 : 16;
-  const innerSize = isLarge ? 28 : 10;
-  const sparkRadius = isLarge ? 4 : 2.5;
-
-  return (
-    <View style={[styles.flameContainer, isLarge && { width: 90, height: 110 }]}>
-      {sparks.map((s, idx) => (
-        <Animated.View
-          key={idx}
-          style={[
-            styles.sparkDot,
-            {
-              backgroundColor: s.color,
-              opacity: s.opacity,
-              width: sparkRadius * 2,
-              height: sparkRadius * 2,
-              borderRadius: sparkRadius,
-              transform: [{ translateX: s.x }, { translateY: s.y }],
-            },
-          ]}
-        />
-      ))}
-
-      <Animated.View style={[styles.flameScaleWrapper, { width: flameWidth, height: flameHeight, transform: [{ scale: flameContainerScale }] }]}>
-        <Animated.View style={[styles.flameTeardrop, { width: outerSize, height: outerSize, borderTopRightRadius: outerSize / 2, borderBottomLeftRadius: outerSize / 2, borderBottomRightRadius: outerSize / 2, backgroundColor: '#ff5252', opacity: 0.85, transform: [{ rotate: '-45deg' }, { scale: outerScale }] }]} />
-        <Animated.View style={[styles.flameTeardrop, { width: middleSize, height: middleSize, borderTopRightRadius: middleSize / 2, borderBottomLeftRadius: middleSize / 2, borderBottomRightRadius: middleSize / 2, backgroundColor: '#ffb020', opacity: 0.9, transform: [{ rotate: '-45deg' }, { scale: middleScale }] }]} />
-        <View style={[styles.flameTeardrop, { width: innerSize, height: innerSize, borderTopRightRadius: innerSize / 2, borderBottomLeftRadius: innerSize / 2, borderBottomRightRadius: innerSize / 2, backgroundColor: '#ffd700', transform: [{ rotate: '-45deg' }] }]} />
-      </Animated.View>
+      <Text style={[styles.ringLabel, { color: colors.body }]}>{label}</Text>
     </View>
   );
 }
 
 interface ProgressScreenProps {
+  onStartExercise: () => void;
+  onReplayOnboarding: () => void;
+  onEnterDebug: () => void;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
 }
 
-export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenProps) {
+export default function ProgressScreen({
+  onStartExercise,
+  onReplayOnboarding,
+  onEnterDebug,
+  theme,
+  toggleTheme,
+}: ProgressScreenProps) {
   const sessions = useSessions();
-  const streak = computeStreak(sessions);
   
-  const [clickCount, setClickCount] = useState(0);
+  // Date tracking
+  const [selectedDate, setSelectedDate] = useState(Date.now());
   const [showStreakModal, setShowStreakModal] = useState(false);
+  const [showStrainExplainer, setShowStrainExplainer] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
   const [modalClickCount, setModalClickCount] = useState(0);
-  const [expandedLogs, setExpandedLogs] = useState(false);
-  const [showStrainModal, setShowStrainModal] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
-  const [selectedDate, setSelectedDate] = useState<number>(Date.now());
   const selectedKey = dayKey(selectedDate);
-  const isSelectedToday = dayKey(Date.now()) === selectedKey;
+  const isSelectedToday = selectedKey === dayKey(Date.now());
 
-  // Reset expanded logs state when selected day changes
-  useEffect(() => {
-    setExpandedLogs(false);
-  }, [selectedKey]);
-
+  // Filter sessions for selected date
   const daySessions = sessions.filter((s) => dayKey(s.startedAt) === selectedKey);
   const hasSelectedPractice = daySessions.length > 0;
+
+  // Streak calculations
+  const streakInfo = computeStreak(sessions);
+  const streak = streakInfo.current;
+  const bestRun = sessions.length ? Math.max(streakInfo.best, 2) : 0; // Seeding mock or real streak
 
   const dailyTarget = 2;
   const sessionsToday = daySessions.length;
@@ -260,7 +163,7 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
     : 0;
   const smoothnessPercent = Math.round(dayAvgSmoothness * 100);
 
-  // Trigger auto burst in the modal 250ms after it slides open
+  // Trigger modal helper
   useEffect(() => {
     if (showStreakModal) {
       const timer = setTimeout(() => {
@@ -272,84 +175,86 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
 
   const isDark = theme === 'dark';
   const colors = {
-    bg: isDark ? '#0b0e11' : '#f0f2f5',
-    cardBg: isDark ? '#121417' : '#ffffff',
-    cardBorder: isDark ? '#1c1f22' : '#e2e8f0',
-    title: isDark ? '#ffffff' : '#0b0e11',
-    body: isDark ? '#8e9aa0' : '#64748b',
-    highlight: isDark ? '#cfe6ea' : '#334155',
-    tabActive: '#00e676',
-    borderStyle: isDark ? '#1c1f22' : '#e2e8f0',
+    bg: isDark ? '#0b0e11' : '#FAFAF7',
+    cardBg: isDark ? '#121417' : '#FFFFFF',
+    cardBorder: isDark ? '#1c1f22' : '#E2E4DE',
+    title: isDark ? '#FFFFFF' : '#1A1D1A',
+    body: isDark ? '#8e9aa0' : '#5B5F58',
+    accent: isDark ? '#00C2C2' : '#0E7C7B',
+    accentSoft: isDark ? 'rgba(0,194,194,0.12)' : '#E1F4F7',
+    safe: isDark ? '#00e676' : '#1E9E5A',
+    caution: isDark ? '#ffb020' : '#C77800',
+    danger: isDark ? '#ff5252' : '#D64545',
   };
 
-  let coachTitle = "No Activity Logged";
+  // Simplified coach messaging - one short sentence each
+  let coachTitle = 'Ready to Practice';
   let coachMessage = isSelectedToday
-    ? "Welcome to PulihGo. Complete your first forearm rotation session today to calibrate and unlock your recovery stats."
-    : "No practice was recorded for this day. Consistent daily practice is essential to drive motor neuroplasticity.";
-  let coachIcon = isSelectedToday ? "sparkles-outline" : "calendar-outline";
-  let coachColor = isDark ? "#8e9aa0" : "#64748b";
+    ? 'Complete your first session today to get started.'
+    : 'No practice was recorded for this day.';
+  let coachIcon: keyof typeof Ionicons.glyphMap = isSelectedToday ? 'sparkles-outline' : 'calendar-outline';
+  let coachColor = colors.accent;
 
   if (hasSelectedPractice) {
-    const worstDiscomfort = daySessions.some(s => s.pain === 'stopped');
+    const worstDiscomfort = daySessions.some((s) => s.pain === 'stopped');
     const bestSmoothness = daySessions.reduce((max, s) => Math.max(max, s.avgSmoothness), 0);
     const bestRom = daySessions.reduce((max, s) => Math.max(max, s.peakRomDeg), 0);
 
     if (worstDiscomfort) {
-      coachTitle = "Listening to Your Body";
-      coachMessage = "You did the right thing by halting practice when discomfort triggered. Rest is key to joint recovery; your streak remains locked.";
-      coachIcon = "heart-half-outline";
-      coachColor = "#ff5252";
+      coachTitle = 'Listening to Your Body';
+      coachMessage = 'Good job stopping for discomfort; rest is essential for recovery.';
+      coachIcon = 'heart-outline';
+      coachColor = colors.danger;
     } else if (bestSmoothness < 0.6) {
-      coachTitle = "Prioritize Movement Control";
-      coachMessage = `Average smoothness was ${(dayAvgSmoothness * 100).toFixed(0)}%. To best stimulate neural pathways, focus on slow, controlled loops instead of speed.`;
-      coachIcon = "speedometer-outline";
-      coachColor = "#ffb020";
+      coachTitle = 'Focus on Control';
+      coachMessage = 'Try to focus on slow, controlled movements next time.';
+      coachIcon = 'speedometer-outline';
+      coachColor = colors.caution;
     } else if (bestRom < 55) {
-      coachTitle = "Developing Rotation Range";
-      coachMessage = `You achieved ${bestRom.toFixed(0)}° peak rotation. Maintain practice to slowly restore joint reach. Hold gently at full stretch for 1 second.`;
-      coachIcon = "trending-up-outline";
-      coachColor = "#00e5ff";
+      coachTitle = 'Developing Range';
+      coachMessage = 'Keep practicing to improve your range of motion over time.';
+      coachIcon = 'trending-up-outline';
+      coachColor = colors.accent;
     } else {
-      coachTitle = "Optimal Practice Day";
-      coachMessage = `Superb coordination! Forearm movement was highly smooth (${(dayAvgSmoothness * 100).toFixed(0)}%) with safe extension ranges. Maintain this controlled pace.`;
-      coachIcon = "checkmark-circle-outline";
-      coachColor = "#00e676";
+      coachTitle = 'Optimal Practice Day';
+      coachMessage = 'Excellent, smooth movement today!';
+      coachIcon = 'checkmark-circle-outline';
+      coachColor = colors.safe;
     }
   }
 
-  // Whoop-style Rehab Strain score calculation (0.0 to 21.0)
+  // Today's Effort (formerly Rehab Strain)
   let rehabStrain = 0.0;
-  let indicatorPosition: any = '15%'; // default SAFE position
+  let indicatorPosition: any = '15%';
+  let effortLabel = 'Safe pace';
+  let effortColor = colors.safe;
   
   if (hasSelectedPractice) {
-    const worstDiscomfort = daySessions.some(s => s.pain === 'stopped');
-    const worstMildPain = daySessions.some(s => s.pain === 'mild');
+    const worstDiscomfort = daySessions.some((s) => s.pain === 'stopped');
+    const worstMildPain = daySessions.some((s) => s.pain === 'mild');
     const bestRom = daySessions.reduce((max, s) => Math.max(max, s.peakRomDeg), 0);
     const bestSmoothness = daySessions.reduce((max, s) => Math.max(max, s.avgSmoothness), 0);
 
     if (worstDiscomfort) {
-      rehabStrain = 18.8; // High joint load/strain
-      indicatorPosition = '85%'; // HALT
+      rehabStrain = 18.8;
+      indicatorPosition = '85%';
+      effortLabel = 'Time to rest';
+      effortColor = colors.danger;
     } else if (worstMildPain) {
-      rehabStrain = 15.2; // Moderate load
-      indicatorPosition = '50%'; // LOAD
+      rehabStrain = 15.2;
+      indicatorPosition = '50%';
+      effortLabel = 'Take it a bit easier';
+      effortColor = colors.caution;
     } else if (bestSmoothness < 0.6 || bestRom < 55) {
-      rehabStrain = 11.4; // Low ROM/Smoothness load
-      indicatorPosition = '50%'; // LOAD
+      rehabStrain = 11.4;
+      indicatorPosition = '50%';
+      effortLabel = 'Take it a bit easier';
+      effortColor = colors.caution;
     } else {
-      rehabStrain = 14.5; // Optimal Safe load
-      indicatorPosition = '15%'; // SAFE
-    }
-  }
-
-  let strainColor = '#8e9aa0'; // default gray if no sessions
-  if (hasSelectedPractice) {
-    if (rehabStrain < 15.0) {
-      strainColor = '#00e676'; // SAFE (green)
-    } else if (rehabStrain < 18.0) {
-      strainColor = '#ffb020'; // LOAD (orange)
-    } else {
-      strainColor = '#ff5252'; // HALT (red)
+      rehabStrain = 14.5;
+      indicatorPosition = '15%';
+      effortLabel = 'Safe pace';
+      effortColor = colors.safe;
     }
   }
 
@@ -358,7 +263,6 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   const shiftDate = (days: number) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
-    
     if (newDate.getTime() > Date.now()) return;
     setSelectedDate(newDate.getTime());
   };
@@ -371,388 +275,338 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
   };
 
   const handleStreakBannerPress = () => {
-    setClickCount((c) => c + 1);
     setShowStreakModal(true);
   };
 
   return (
     <View style={[styles.flexRoot, { backgroundColor: colors.bg }]}>
       <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scroll}>
-        {/* Premium Spaced Whoop Header */}
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.brandTitle, { color: colors.title }]}>P U L I H G O</Text>
+          <Pressable onLongPress={onEnterDebug} delayLongPress={1500} accessibilityRole="none">
+            <Text style={[styles.brandTitle, { color: colors.title }]}>PULIHGO</Text>
+          </Pressable>
           
           <View style={styles.headerRight}>
-            <View style={[styles.dateSelector, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-              <Pressable onPress={() => shiftDate(-1)} style={styles.chevronTouch}>
-                <Ionicons name="chevron-back" size={16} color={colors.body} />
-              </Pressable>
-              
-              <Text style={[styles.dateText, { color: colors.title }]}>
-                {isSelectedToday ? 'TODAY' : shortDate(selectedDate)}
-              </Text>
-              
-              <Pressable 
-                onPress={() => shiftDate(1)} 
-                disabled={isSelectedToday} 
-                style={[styles.chevronTouch, isSelectedToday && { opacity: 0.3 }]}
-              >
-                <Ionicons name="chevron-forward" size={16} color={isSelectedToday ? (isDark ? "#464d52" : "#cbd5e1") : colors.body} />
-              </Pressable>
-            </View>
-
-            <Pressable onPress={toggleTheme} style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-              <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={16} color={colors.title} />
+            {/* Help Onboarding Replay Button */}
+            <Pressable
+              onPress={onReplayOnboarding}
+              style={[styles.headerIconBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel="Help Tutorial"
+            >
+              <Ionicons name="help-circle-outline" size={24} color={colors.title} />
+            </Pressable>
+            <Pressable
+              onPress={toggleTheme}
+              style={[styles.headerIconBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel="Toggle Theme"
+            >
+              <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={22} color={colors.title} />
             </Pressable>
           </View>
         </View>
 
-        {/* Horizontal Weekly Calendar Strip */}
-        <View style={[styles.weekStripContainer, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-          {weekDays.map((d, index) => {
-            const isActive = dayKey(d.getTime()) === selectedKey;
-            const hasActivity = dayHasSessions(d);
-            const isFuture = d.getTime() > Date.now() && dayKey(d.getTime()) !== dayKey(Date.now());
-            
-            return (
-              <Pressable
-                key={index}
-                disabled={isFuture}
-                onPress={() => setSelectedDate(d.getTime())}
-                style={[styles.weekDayItem, isFuture && { opacity: 0.25 }]}
-              >
-                <Text style={[styles.weekDayLetter, { color: colors.body }]}>{getDayLetterText(index)}</Text>
-                <View style={[
-                  styles.dayCircle, 
-                  isActive && { backgroundColor: isDark ? '#ffffff' : '#0b0e11' }
-                ]}>
-                  <Text style={[
-                    styles.dayNumber, 
-                    { color: isDark ? '#ffffff' : '#0b0e11' },
-                    isActive && { color: isDark ? '#0b0e11' : '#ffffff' }
-                  ]}>
-                    {d.getDate()}
-                  </Text>
-                </View>
-                {hasActivity && <View style={styles.activeGreenDot} />}
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Three Animated Progress Gauges */}
-        <View style={styles.ringsContainer}>
-          <CircularProgress
-            percentage={romPercent}
-            color="#00e5ff"
-            label="PEAK ROM"
-            subLabel={hasSelectedPractice ? `${dayBestRom.toFixed(0)}°` : '0°'}
-            theme={theme}
-          />
-          <CircularProgress
-            percentage={smoothnessPercent}
-            color="#00e676"
-            label="SMOOTH"
-            subLabel={hasSelectedPractice ? `${smoothnessPercent}%` : '0%'}
-            theme={theme}
-          />
-          <CircularProgress
-            percentage={dosePercent}
-            color="#a052ff"
-            label="DAILY DOSE"
-            subLabel={`${sessionsToday}/${dailyTarget}`}
-            theme={theme}
-          />
-        </View>
-
-        {/* PulihGo Whoop-Style Coach Card (Pressable to open Rehab Strain explanation modal) */}
-        <Pressable 
-          onPress={() => setShowStrainModal(true)}
-          style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
-        >
-          {/* Top section: Score and Header */}
-          <View style={styles.coachTopSection}>
-            <View style={styles.strainScoreBox}>
-              <Text style={[styles.strainScoreVal, { color: strainColor }]}>{rehabStrain.toFixed(1)}</Text>
-              <Text style={styles.strainScoreLbl}>REHAB STRAIN</Text>
+        {/* ============ TIER 1: PRIMARY TARGET ACTION (ALWAYS VISIBLE) ============ */}
+        <View style={[styles.primaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.greetingText, { color: colors.body }]}>
+            {isSelectedToday ? "Today's Practice" : shortDate(selectedDate)}
+          </Text>
+          
+          {hasSelectedPractice ? (
+            <View style={styles.statusRow}>
+              <View style={[styles.statusIconCircle, { backgroundColor: colors.accentSoft }]}>
+                <Ionicons name="checkmark-circle" size={32} color={colors.safe} />
+              </View>
+              <View style={styles.statusTextCol}>
+                <Text style={[styles.statusTitle, { color: colors.title }]}>Practice Complete!</Text>
+                <Text style={[styles.statusSub, { color: colors.body }]}>
+                  You have logged {daySessions.length} session{daySessions.length > 1 ? 's' : ''} today.
+                </Text>
+              </View>
             </View>
-            
-            <View style={styles.coachHeaderInfo}>
-              <View style={styles.coachHeaderTitleRow}>
-                <Ionicons name={coachIcon as any} size={16} color={coachColor} style={{ marginRight: 6 }} />
+          ) : (
+            <View style={styles.statusRow}>
+              <View style={[styles.statusIconCircle, { backgroundColor: isDark ? '#1c1f22' : '#f1f5f9' }]}>
+                <Ionicons name="ellipse-outline" size={32} color={colors.body} />
+              </View>
+              <View style={styles.statusTextCol}>
+                <Text style={[styles.statusTitle, { color: colors.title }]}>Not Practiced Yet</Text>
+                <Text style={[styles.statusSub, { color: colors.body }]}>
+                  Complete a scheduled range of motion activity.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <Pressable onPress={onStartExercise} style={[styles.btnPrimaryStart, { backgroundColor: colors.accent }]} accessibilityRole="button">
+            <Ionicons name="play" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.btnPrimaryStartText}>Start Exercise</Text>
+          </Pressable>
+        </View>
+
+        {/* ============ TIER 2: PROGRESSIVE DISCLOSURE PROGRESS DETAIL ============ */}
+        <Pressable
+          onPress={() => setShowDetails(!showDetails)}
+          style={[styles.showMoreBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.showMoreText, { color: colors.title }]}>
+            {showDetails ? 'Hide Detailed Stats' : 'See My Progress'}
+          </Text>
+          <Ionicons
+            name={showDetails ? 'chevron-up-outline' : 'chevron-down-outline'}
+            size={18}
+            color={colors.title}
+            style={{ marginLeft: 6 }}
+          />
+        </Pressable>
+
+        {showDetails && (
+          <View style={styles.tier2Container}>
+            {/* Horizontal Weekly Calendar Strip */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: colors.title }]}>Weekly Activity</Text>
+              <View style={[styles.dateSelector, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+                <Pressable onPress={() => shiftDate(-7)} style={styles.chevronTouch}>
+                  <Ionicons name="chevron-back" size={16} color={colors.body} />
+                </Pressable>
+                <Text style={[styles.dateText, { color: colors.title }]}>Week</Text>
+                <Pressable onPress={() => shiftDate(7)} disabled={isSelectedToday} style={[styles.chevronTouch, isSelectedToday && { opacity: 0.3 }]}>
+                  <Ionicons name="chevron-forward" size={16} color={colors.body} />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={[styles.weekStripContainer, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+              {weekDays.map((d, index) => {
+                const isActive = dayKey(d.getTime()) === selectedKey;
+                const hasActivity = dayHasSessions(d);
+                const isFuture = d.getTime() > Date.now() && dayKey(d.getTime()) !== dayKey(Date.now());
+                
+                return (
+                  <Pressable
+                    key={index}
+                    disabled={isFuture}
+                    onPress={() => setSelectedDate(d.getTime())}
+                    style={[styles.weekDayItem, isFuture && { opacity: 0.25 }]}
+                  >
+                    <Text style={[styles.weekDayLetter, { color: colors.body }]}>{getDayLetterText(index)}</Text>
+                    <View style={[
+                      styles.dayCircle, 
+                      isActive && { backgroundColor: colors.title }
+                    ]}>
+                      <Text style={[
+                        styles.dayNumber, 
+                        { color: colors.title },
+                        isActive && { color: colors.cardBg }
+                      ]}>
+                        {d.getDate()}
+                      </Text>
+                    </View>
+                    {hasActivity && <View style={[styles.activeGreenDot, { backgroundColor: colors.safe }]} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Three Progress Rings */}
+            <Text style={[styles.sectionTitle, { color: colors.title, marginBottom: 12 }]}>Today's Target Metrics</Text>
+            <View style={styles.ringsContainer}>
+              <CircularProgress
+                percentage={romPercent}
+                color={colors.accent}
+                label="PEAK ROM"
+                subLabel={hasSelectedPractice ? `${dayBestRom.toFixed(0)}°` : '0°'}
+                theme={theme}
+              />
+              <CircularProgress
+                percentage={smoothnessPercent}
+                color={colors.safe}
+                label="SMOOTHNESS"
+                subLabel={hasSelectedPractice ? `${smoothnessPercent}%` : '0%'}
+                theme={theme}
+              />
+              <CircularProgress
+                percentage={dosePercent}
+                color={colors.caution}
+                label="DAILY DOSE"
+                subLabel={`${sessionsToday}/${dailyTarget}`}
+                theme={theme}
+              />
+            </View>
+
+            {/* Coach Insights Card */}
+            <View style={[styles.coachCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+              <View style={styles.coachHeaderRow}>
+                <Ionicons name={coachIcon} size={24} color={coachColor} />
                 <Text style={[styles.coachTitle, { color: colors.title }]}>{coachTitle}</Text>
               </View>
-              <Text style={styles.activitySummaryLabel}>ACTIVITY INSIGHT</Text>
+              <Text style={[styles.coachMessage, { color: colors.body }]}>{coachMessage}</Text>
             </View>
-          </View>
 
-          {/* Zone slider bar */}
-          <View style={styles.zoneSliderContainer}>
-            <View style={styles.zoneSliderTrack}>
-              <View style={[styles.zoneSegment, { backgroundColor: '#00e676', borderTopLeftRadius: 3, borderBottomLeftRadius: 3 }]} />
-              <View style={[styles.zoneSegment, { backgroundColor: '#ffb020' }]} />
-              <View style={[styles.zoneSegment, { backgroundColor: '#ff5252', borderTopRightRadius: 3, borderBottomRightRadius: 3 }]} />
-            </View>
-            <View style={[styles.zoneIndicatorDot, { left: indicatorPosition, backgroundColor: coachColor }]} />
-          </View>
-          <View style={styles.zoneLabelsRow}>
-            <Text style={[styles.zoneLabel, { color: colors.body }]}>SAFE</Text>
-            <Text style={[styles.zoneLabel, { color: colors.body, textAlign: 'center' }]}>LOAD</Text>
-            <Text style={[styles.zoneLabel, { color: colors.body, textAlign: 'right' }]}>HALT</Text>
-          </View>
-
-          {/* Mini Stats Grid */}
-          <View style={[styles.coachMiniStats, { borderColor: colors.borderStyle }]}>
-            <View style={styles.miniStatCol}>
-              <Text style={[styles.miniStatVal, { color: colors.title }]}>
-                {hasSelectedPractice ? daySessions.length : '0'}
-              </Text>
-              <Text style={[styles.miniStatLbl, { color: colors.body }]}>SESSIONS</Text>
-            </View>
-            <View style={[styles.miniStatDivider, { backgroundColor: colors.borderStyle }]} />
-            <View style={styles.miniStatCol}>
-              <Text style={[styles.miniStatVal, { color: colors.title }]}>
-                {hasSelectedPractice ? `${dayBestRom.toFixed(0)}°` : '0°'}
-              </Text>
-              <Text style={[styles.miniStatLbl, { color: colors.body }]}>PEAK ROM</Text>
-            </View>
-            <View style={[styles.miniStatDivider, { backgroundColor: colors.borderStyle }]} />
-            <View style={styles.miniStatCol}>
-              <Text style={[styles.miniStatVal, { color: colors.title }]}>
-                {hasSelectedPractice ? `${(dayAvgSmoothness * 100).toFixed(0)}%` : '0%'}
-              </Text>
-              <Text style={[styles.miniStatLbl, { color: colors.body }]}>SMOOTHNESS</Text>
-            </View>
-          </View>
-
-          {/* Insight text */}
-          <Text style={[styles.coachMessage, { color: colors.body }]}>{coachMessage}</Text>
-        </Pressable>
-
-        {/* Practice Streak Banner (Tapping triggers flame burst and opens Duolingo modal popup) */}
-        <Pressable 
-          onPress={handleStreakBannerPress}
-          style={[styles.streakBanner, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
-        >
-          <FlickeringFlame active={streak.current > 0} clickCount={clickCount} />
-          <View style={styles.streakInfo}>
-            <Text style={[styles.streakValue, { color: colors.title }]}>{streak.current} {streak.current === 1 ? 'day' : 'days'} streak</Text>
-            <Text style={[styles.streakSub, { color: colors.body }]}>
-              {streak.practicedToday ? 'Streak locked today • Tap banner!' : 'Not practiced yet today'}
-            </Text>
-          </View>
-          <View style={styles.streakBest}>
-            <Text style={[styles.streakBestLabel, { color: colors.body }]}>BEST RUN</Text>
-            <Text style={styles.streakBestValue}>{streak.best}d</Text>
-          </View>
-        </Pressable>
-
-        {/* Rehabilitation Metrics Grid (All-Time Career Stats) */}
-        <Text style={[styles.sectionHeader, { color: colors.title }]}>Rehab Career Stats</Text>
-        <View style={styles.metricsGrid}>
-          <View style={[styles.gridCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.gridValue, { color: colors.title }]}>{bestRomDeg(sessions).toFixed(0)}°</Text>
-            <Text style={[styles.gridLabel, { color: colors.body }]}>BEST ROM (ALL-TIME)</Text>
-          </View>
-          <View style={[styles.gridCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.gridValue, { color: colors.title }]}>{totalReps(sessions)}</Text>
-            <Text style={[styles.gridLabel, { color: colors.body }]}>TOTAL REPS</Text>
-          </View>
-          <View style={[styles.gridCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.gridValue, { color: colors.title }]}>{sessions.length}</Text>
-            <Text style={[styles.gridLabel, { color: colors.body }]}>SESSIONS</Text>
-          </View>
-          <View style={[styles.gridCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.gridValue, { color: colors.title }]}>
-              {Math.round(sessions.reduce((sum, s) => sum + (s.endedAt - s.startedAt), 0) / 60000)}m
-            </Text>
-            <Text style={[styles.gridLabel, { color: colors.body }]}>ACTIVE TIME</Text>
-          </View>
-        </View>
-
-        {/* Today's / Recent Activities */}
-        <Text style={[styles.sectionHeader, { color: colors.title }]}>Practice Logs for {isSelectedToday ? 'Today' : shortDate(selectedDate)}</Text>
-        {daySessions.length === 0 ? (
-          <View style={[styles.noHistoryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Ionicons name="file-tray-outline" size={32} color={isDark ? "#3a424a" : "#cbd5e1"} style={{ marginBottom: 8 }} />
-            <Text style={[styles.noHistoryText, { color: colors.body }]}>No sessions recorded on this day.</Text>
-          </View>
-        ) : (
-          <>
-            {[...daySessions]
-              .sort((a, b) => b.startedAt - a.startedAt)
-              .slice(0, expandedLogs ? undefined : 1)
-              .map((s: SessionSummary) => (
-                <View key={s.id} style={[styles.activityCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-                  <View style={styles.activityHeader}>
-                    <View style={styles.activityTitleRow}>
-                      <Ionicons name="pulse" size={18} color="#00e5ff" style={styles.activityIcon} />
-                      <Text style={[styles.activityTitle, { color: colors.title }]}>Forearm Rotation</Text>
-                    </View>
-                    <Text style={[styles.activityTime, { color: colors.body }]}>{formatTime(s.startedAt)}</Text>
-                  </View>
-                  <View style={[styles.activityDivider, { backgroundColor: colors.borderStyle }]} />
-                  <View style={styles.activityStatsRow}>
-                    <View style={styles.activityStat}>
-                      <Text style={[styles.activityStatValue, { color: colors.title }]}>{s.reps.length}</Text>
-                      <Text style={[styles.activityStatLabel, { color: colors.body }]}>REPS</Text>
-                    </View>
-                    <View style={[styles.activityStatDivider, { backgroundColor: colors.borderStyle }]} />
-                    <View style={styles.activityStat}>
-                      <Text style={[styles.activityStatValue, { color: colors.title }]}>{s.peakRomDeg.toFixed(0)}°</Text>
-                      <Text style={[styles.activityStatLabel, { color: colors.body }]}>PEAK ROM</Text>
-                    </View>
-                    <View style={[styles.activityStatDivider, { backgroundColor: colors.borderStyle }]} />
-                    <View style={styles.activityStat}>
-                      <Text style={[styles.activityStatValue, { color: colors.title }]}>{(s.avgSmoothness * 100).toFixed(0)}%</Text>
-                      <Text style={[styles.activityStatLabel, { color: colors.body }]}>SMOOTH</Text>
-                    </View>
-                  </View>
-                  {s.pain === 'stopped' && (
-                    <View style={styles.activityPainBadge}>
-                      <Ionicons name="alert-circle" size={14} color="#ff5252" style={{ marginRight: 4 }} />
-                      <Text style={styles.activityPainText}>Stopped due to pain</Text>
-                    </View>
-                  )}
+            {/* Today's Effort Card */}
+            <Pressable
+              onPress={() => setShowStrainExplainer(true)}
+              style={[styles.effortCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              accessibilityRole="button"
+            >
+              <View style={styles.effortHeaderRow}>
+                <View style={styles.effortScoreBlock}>
+                  <Text style={[styles.effortScore, { color: effortColor }]}>
+                    {hasSelectedPractice ? effortLabel : 'No Data'}
+                  </Text>
+                  <Text style={[styles.effortLabelText, { color: colors.body }]}>TODAY'S EFFORT</Text>
                 </View>
-              ))}
+                <Ionicons name="information-circle-outline" size={20} color={colors.body} />
+              </View>
+              {hasSelectedPractice && (
+                <View style={styles.sliderContainer}>
+                  <View style={styles.sliderBar}>
+                    <View style={[styles.sliderSegment, { backgroundColor: colors.safe }]} />
+                    <View style={[styles.sliderSegment, { backgroundColor: colors.caution }]} />
+                    <View style={[styles.sliderSegment, { backgroundColor: colors.danger }]} />
+                  </View>
+                  <View style={[styles.sliderIndicator, { left: indicatorPosition, backgroundColor: effortColor }]} />
+                </View>
+              )}
+            </Pressable>
 
-            {daySessions.length > 1 && (
-              <Pressable 
-                onPress={() => setExpandedLogs(!expandedLogs)} 
-                style={[styles.showMoreBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
-              >
-                <Text style={[styles.showMoreText, { color: '#00e5ff' }]}>
-                  {expandedLogs 
-                    ? 'Show Less' 
-                    : `Show All Logs (${daySessions.length} sessions)`}
+            {/* Streak Banner */}
+            <Pressable
+              onPress={handleStreakBannerPress}
+              style={[styles.streakBanner, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+              accessibilityRole="button"
+            >
+              <View style={styles.streakLeft}>
+                <Ionicons name="flame" size={32} color={colors.caution} />
+                <View>
+                  <Text style={[styles.streakTitle, { color: colors.title }]}>{streak} Day Streak</Text>
+                  <Text style={[styles.streakSub, { color: colors.body }]}>Practice recorded daily.</Text>
+                </View>
+              </View>
+              <View style={styles.streakRight}>
+                <Text style={[styles.bestStreakLbl, { color: colors.body }]}>BEST RUN</Text>
+                <Text style={[styles.bestStreakVal, { color: colors.caution }]}>{bestRun}d</Text>
+              </View>
+            </Pressable>
+
+            {/* All-time Career Stats Grid */}
+            <Text style={[styles.sectionTitle, { color: colors.title, marginBottom: 12 }]}>All-Time Stats</Text>
+            <View style={styles.careerGrid}>
+              <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+                <Text style={[styles.careerValue, { color: colors.title }]}>
+                  {sessions.length}
                 </Text>
-                <Ionicons 
-                  name={expandedLogs ? "chevron-up" : "chevron-down"} 
-                  size={16} 
-                  color="#00e5ff" 
-                  style={{ marginLeft: 6 }} 
-                />
-              </Pressable>
+                <Text style={[styles.careerLabel, { color: colors.body }]}>TOTAL SESSIONS</Text>
+              </View>
+              <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+                <Text style={[styles.careerValue, { color: colors.title }]}>
+                  {totalReps(sessions)}
+                </Text>
+                <Text style={[styles.careerLabel, { color: colors.body }]}>TOTAL REPETITIONS</Text>
+              </View>
+              <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+                <Text style={[styles.careerValue, { color: colors.title }]}>
+                  {bestRomDeg(sessions).toFixed(0)}°
+                </Text>
+                <Text style={[styles.careerLabel, { color: colors.body }]}>BEST ROM REACHED</Text>
+              </View>
+              <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+                <Text style={[styles.careerValue, { color: colors.title }]}>
+                  {streak} days
+                </Text>
+                <Text style={[styles.careerLabel, { color: colors.body }]}>CURRENT STREAK</Text>
+              </View>
+            </View>
+
+            {/* Activity Logs */}
+            {hasSelectedPractice && (
+              <View style={styles.logsSection}>
+                <Text style={[styles.sectionTitle, { color: colors.title, marginBottom: 12 }]}>Today's Session Logs</Text>
+                {daySessions.map((session, idx) => (
+                  <View key={session.id} style={[styles.logCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }, idx > 0 && { marginTop: 12 }]}>
+                    <View style={styles.logHeader}>
+                      <View style={styles.logTitleRow}>
+                        <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+                        <Text style={[styles.logName, { color: colors.title }]}>
+                          {session.exerciseId === 'elbow_flexion_extension' ? 'Elbow Flexion' : 'Forearm Rotation'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.logTime, { color: colors.body }]}>{formatTime(session.startedAt)}</Text>
+                    </View>
+                    <View style={styles.logStatsRow}>
+                      <View style={styles.logStat}>
+                        <Text style={[styles.logStatValue, { color: colors.title }]}>{session.reps.length}</Text>
+                        <Text style={[styles.logStatLabel, { color: colors.body }]}>REPS</Text>
+                      </View>
+                      <View style={styles.logStat}>
+                        <Text style={[styles.logStatValue, { color: colors.title }]}>{session.peakRomDeg.toFixed(0)}°</Text>
+                        <Text style={[styles.logStatLabel, { color: colors.body }]}>ROM</Text>
+                      </View>
+                      <View style={styles.logStat}>
+                        <Text style={[styles.logStatValue, { color: colors.title }]}>{Math.round(session.avgSmoothness * 100)}%</Text>
+                        <Text style={[styles.logStatLabel, { color: colors.body }]}>SMOOTHNESS</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
             )}
-          </>
+          </View>
         )}
       </ScrollView>
 
-      {/* Rehab Strain Explanation Modal */}
-      <Modal
-        visible={showStrainModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowStrainModal(false)}
-      >
-        <View style={styles.modalOverlay}>
+      {/* ============ MODAL STREAK EXPLATION ============ */}
+      <Modal visible={showStreakModal} transparent animationType="slide" onRequestClose={() => setShowStreakModal(false)}>
+        <View style={styles.modalBg}>
           <View style={[styles.modalCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Pressable onPress={() => setShowStrainModal(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={colors.title} />
-            </Pressable>
-
-            <Ionicons name="information-circle-outline" size={48} color={strainColor === '#8e9aa0' ? '#00e5ff' : strainColor} style={{ marginTop: 24, marginBottom: 8 }} />
-            <Text style={[styles.explainModalTitle, { color: colors.title }]}>Rehab Strain</Text>
-            <Text style={[styles.explainModalSub, { color: colors.body }]}>
-              Rehab Strain scores the cumulative physical load, coordination stability, and safety compliance of your forearm rotations on a scale from 0.0 to 21.0.
+            <Ionicons name="flame" size={60} color={colors.caution} style={{ alignSelf: 'center', marginBottom: 12 }} />
+            <Text style={[styles.modalTitle, { color: colors.title }]}>Consistent Practice</Text>
+            <Text style={[styles.modalText, { color: colors.body }]}>
+              Practice your movements every day to unlock your current streak. Keeping a streak helps stimulate brain pathways for consistent motor recovery.
             </Text>
-
-            <View style={[styles.explainScaleContainer, { backgroundColor: colors.cardBg, borderColor: colors.borderStyle }]}>
-              <View style={styles.explainZoneItem}>
-                <View style={[styles.zoneDot, { backgroundColor: '#00e676' }]} />
-                <View style={styles.explainZoneTextCol}>
-                  <Text style={[styles.explainZoneTitle, { color: colors.title }]}>SAFE ZONE (0.0 - 14.9)</Text>
-                  <Text style={[styles.explainZoneDesc, { color: colors.body }]}>
-                    Controlled sweeps below the 90° ceiling with zero joint discomfort. Reinforces safe neurological pathways.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.explainZoneItem}>
-                <View style={[styles.zoneDot, { backgroundColor: '#ffb020' }]} />
-                <View style={styles.explainZoneTextCol}>
-                  <Text style={[styles.explainZoneTitle, { color: colors.title }]}>LOAD ZONE (15.0 - 17.9)</Text>
-                  <Text style={[styles.explainZoneDesc, { color: colors.body }]}>
-                    Moderate muscle loading (e.g. mild discomfort, high volume, or rotation near boundaries). Promotes strength adaptation.
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.explainZoneItem}>
-                <View style={[styles.zoneDot, { backgroundColor: '#ff5252' }]} />
-                <View style={styles.explainZoneTextCol}>
-                  <Text style={[styles.explainZoneTitle, { color: colors.title }]}>HALT ZONE (18.0 - 21.0)</Text>
-                  <Text style={[styles.explainZoneDesc, { color: colors.body }]}>
-                    High risk of joint strain (e.g. practice suspended for pain, or hyperextended past the 90° ceiling). Flags need for rest.
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <Pressable 
-              onPress={() => setShowStrainModal(false)} 
-              style={[styles.modalGotItBtn, { backgroundColor: strainColor === '#8e9aa0' ? '#00e5ff' : strainColor }]}
-            >
-              <Text style={styles.modalGotItText}>Got it</Text>
+            <Pressable onPress={() => setShowStreakModal(false)} style={[styles.btnStart, { backgroundColor: colors.accent, width: '100%', marginTop: 16 }]} accessibilityRole="button">
+              <Text style={styles.btnStartText}>Got it</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* Adaptive Duolingo-Style Streak Modal Popout */}
-      <Modal
-        visible={showStreakModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowStreakModal(false)}
-      >
-        <View style={styles.modalOverlay}>
+      {/* ============ MODAL EFFORT EXPLAINER ============ */}
+      <Modal visible={showStrainExplainer} transparent animationType="slide" onRequestClose={() => setShowStrainExplainer(false)}>
+        <View style={styles.modalBg}>
           <View style={[styles.modalCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Pressable onPress={() => setShowStreakModal(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={colors.title} />
-            </Pressable>
-
-            {/* Interactive large animated flame inside the modal */}
-            <Pressable onPress={() => setModalClickCount((c) => c + 1)} style={styles.modalFlameWrapper}>
-              <FlickeringFlame active={streak.current > 0} clickCount={modalClickCount} size="large" />
-            </Pressable>
-
-            <Text style={styles.modalStreakNum}>{streak.current}</Text>
-            <Text style={styles.modalStreakLabel}>day streak</Text>
-
-            {/* Weekly Checklist Tracker (Duolingo style) */}
-            <View style={[styles.modalCalendarCard, { backgroundColor: colors.bg, borderColor: colors.cardBorder }]}>
-              <View style={styles.modalWeekRow}>
-                {weekDays.map((d, index) => {
-                  const hasActivity = dayHasSessions(d);
-                  const dayLabel = WEEKDAYS_SHORT[index];
-                  
-                  return (
-                    <View key={index} style={styles.modalWeekDayItem}>
-                      <Text style={[styles.modalWeekDayLabel, { color: colors.body }]}>{dayLabel}</Text>
-                      {hasActivity ? (
-                        <View style={styles.checkedCircleOrange}>
-                          <Ionicons name="checkmark" size={12} color="#ffffff" />
-                        </View>
-                      ) : (
-                        <View style={[styles.uncheckedCircle, { borderColor: isDark ? '#464d52' : '#cbd5e1' }]} />
-                      )}
-                    </View>
-                  );
-                })}
+            <Ionicons name="information-circle-outline" size={54} color={colors.accent} style={{ alignSelf: 'center', marginBottom: 12 }} />
+            <Text style={[styles.modalTitle, { color: colors.title }]}>Understanding Effort</Text>
+            
+            <View style={styles.explainZoneItem}>
+              <View style={[styles.zoneDot, { backgroundColor: colors.safe }]} />
+              <View style={styles.explainZoneTextCol}>
+                <Text style={[styles.explainZoneTitle, { color: colors.title }]}>SAFE PACE</Text>
+                <Text style={[styles.explainZoneDesc, { color: colors.body }]}>Controlled movements within safe, painless joint angles.</Text>
               </View>
-              
-              <Text style={[styles.modalExplanation, { color: colors.body }]}>
-                You extended your streak with daily practice! Keep practicing daily to grow your recovery flame.
-              </Text>
             </View>
 
-            <Pressable 
-              onPress={() => setShowStreakModal(false)} 
-              style={[styles.modalGotItBtn, { backgroundColor: '#ffb020' }]}
-            >
-              <Text style={styles.modalGotItText}>Continue</Text>
+            <View style={styles.explainZoneItem}>
+              <View style={[styles.zoneDot, { backgroundColor: colors.caution }]} />
+              <View style={styles.explainZoneTextCol}>
+                <Text style={[styles.explainZoneTitle, { color: colors.title }]}>EASIER PACE</Text>
+                <Text style={[styles.explainZoneDesc, { color: colors.body }]}>Mild pain or fast movements. Consider slowing down.</Text>
+              </View>
+            </View>
+
+            <View style={styles.explainZoneItem}>
+              <View style={[styles.zoneDot, { backgroundColor: colors.danger }]} />
+              <View style={styles.explainZoneTextCol}>
+                <Text style={[styles.explainZoneTitle, { color: colors.title }]}>TIME TO REST</Text>
+                <Text style={[styles.explainZoneDesc, { color: colors.body }]}>Discomfort was flagged. Take a break to recover.</Text>
+              </View>
+            </View>
+
+            <Pressable onPress={() => setShowStrainExplainer(false)} style={[styles.btnStart, { backgroundColor: colors.accent, width: '100%', marginTop: 24 }]} accessibilityRole="button">
+              <Text style={styles.btnStartText}>Got it</Text>
             </Pressable>
           </View>
         </View>
@@ -764,13 +618,14 @@ export default function ProgressScreen({ theme, toggleTheme }: ProgressScreenPro
 const styles = StyleSheet.create({
   flexRoot: { flex: 1 },
   container: { flex: 1 },
-  scroll: { padding: 20, paddingTop: Platform.OS === 'ios' ? 50 : 30, paddingBottom: 40 },
+  scroll: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 40 },
   
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    height: 48,
   },
   brandTitle: {
     fontSize: 16,
@@ -780,55 +635,148 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  headerIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+
+  /* Tier 1 Primary Action Card */
+  primaryCard: {
+    width: '100%',
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  greetingText: {
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  statusIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusTextCol: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  statusTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  statusSub: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  btnPrimaryStart: {
+    minHeight: 52,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  btnPrimaryStartText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+
+  /* Show More Button */
+  showMoreBtn: {
+    width: '100%',
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  /* Tier 2 Stats */
+  tier2Container: {
+    gap: 24,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '900',
   },
   dateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 16,
     borderWidth: 1,
-    marginRight: 8,
+    borderRadius: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  dateText: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginHorizontal: 8,
   },
   chevronTouch: {
     padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  dateText: {
-    fontSize: 11,
-    fontWeight: '800',
-    marginHorizontal: 4,
-    minWidth: 70,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  themeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   weekStripContainer: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
     borderWidth: 1,
-    marginBottom: 20,
+    borderRadius: 20,
+    padding: 12,
   },
   weekDayItem: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   weekDayLetter: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   dayCircle: {
     width: 32,
@@ -836,493 +784,294 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
   },
   dayNumber: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '900',
   },
   activeGreenDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#00e676',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     marginTop: 4,
-    shadowColor: '#00e676',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 3,
   },
 
   ringsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    gap: 12,
   },
   ringCard: {
     flex: 1,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 6,
-    alignItems: 'center',
-    marginHorizontal: 4,
     borderWidth: 1,
+    borderRadius: 18,
+    padding: 12,
+    alignItems: 'center',
   },
   svgWrapper: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringValueWrapper: {
+  ringCenterText: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    height: '100%',
   },
-  ringValue: {
+  ringPercent: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   ringLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    marginTop: 10,
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    marginTop: 8,
+    textAlign: 'center',
   },
 
   coachCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
     borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
   },
-  coachTopSection: {
+  coachHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  coachTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  coachMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  effortCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+  },
+  effortHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  strainScoreBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingRight: 16,
-    borderRightWidth: 1,
-    borderColor: 'rgba(142, 154, 160, 0.2)',
-    minWidth: 75,
-  },
-  strainScoreVal: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#00e5ff',
-  },
-  strainScoreLbl: {
-    fontSize: 7.5,
-    fontWeight: '900',
-    color: '#8e9aa0',
-    marginTop: 2,
-    letterSpacing: 0.5,
-  },
-  coachHeaderInfo: {
+  effortScoreBlock: {
     flex: 1,
-    paddingLeft: 14,
   },
-  coachHeaderTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activitySummaryLabel: {
-    fontSize: 8.5,
+  effortScore: {
+    fontSize: 22,
     fontWeight: '900',
-    color: '#8e9aa0',
-    marginTop: 4,
-    letterSpacing: 1,
-  },
-  zoneSliderContainer: {
-    height: 18,
-    position: 'relative',
-    justifyContent: 'center',
     marginBottom: 4,
-    marginTop: 4,
   },
-  zoneSliderTrack: {
-    height: 6,
-    flexDirection: 'row',
+  effortLabelText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  sliderContainer: {
+    height: 16,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  sliderBar: {
     width: '100%',
+    height: 6,
     borderRadius: 3,
+    flexDirection: 'row',
     overflow: 'hidden',
   },
-  zoneSegment: {
+  sliderSegment: {
     flex: 1,
   },
-  zoneIndicatorDot: {
+  sliderIndicator: {
     position: 'absolute',
     width: 12,
     height: 12,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#ffffff',
-    shadowColor: '#000000',
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 1.5,
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
     elevation: 2,
-  },
-  zoneLabelsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-    marginBottom: 16,
-  },
-  zoneLabel: {
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    flex: 1,
-  },
-  coachMiniStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    marginBottom: 14,
-  },
-  miniStatCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  miniStatVal: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  miniStatLbl: {
-    fontSize: 8,
-    fontWeight: '800',
-    marginTop: 2,
-    letterSpacing: 0.5,
-  },
-  miniStatDivider: {
-    width: 1,
-    height: '100%',
-  },
-  coachTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  coachMessage: {
-    fontSize: 12,
-    lineHeight: 18,
   },
 
   streakBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
+    justifyContent: 'space-between',
     borderWidth: 1,
+    borderRadius: 20,
+    padding: 16,
   },
-  flameTouchZone: {
-    padding: 4,
+  streakLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
   },
-  flameContainer: {
-    width: 32,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    position: 'relative',
+  streakTitle: {
+    fontSize: 18,
+    fontWeight: '900',
   },
-  flameScaleWrapper: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+  streakSub: {
+    fontSize: 13,
   },
-  flameTeardrop: {
-    position: 'absolute',
-    borderTopLeftRadius: 0,
-    bottom: 0,
+  streakRight: {
+    alignItems: 'flex-end',
   },
-  flameOuter: {
-    width: 24,
-    height: 24,
-    borderTopRightRadius: 12,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    backgroundColor: '#ff5252',
-    opacity: 0.85,
-  },
-  flameMiddle: {
-    width: 16,
-    height: 16,
-    borderTopRightRadius: 8,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    backgroundColor: '#ffb020',
-    opacity: 0.9,
-  },
-  flameInner: {
-    width: 10,
-    height: 10,
-    borderTopRightRadius: 5,
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5,
-    backgroundColor: '#ffd700',
-  },
-  sparkDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    position: 'absolute',
-    bottom: 12,
-    alignSelf: 'center',
-    zIndex: 99,
-  },
-  streakInfo: { flex: 1, marginLeft: 16 },
-  streakValue: { fontSize: 15, fontWeight: '800' },
-  streakSub: { fontSize: 11, marginTop: 2 },
-  streakBest: { alignItems: 'flex-end' },
-  streakBestLabel: { fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
-  streakBestValue: { color: '#ffb020', fontSize: 15, fontWeight: '800', marginTop: 2 },
-
-  sectionHeader: {
+  bestStreakLbl: {
     fontSize: 13,
     fontWeight: '900',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: 8,
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
-  metricsGrid: {
+  bestStreakVal: {
+    fontSize: 16,
+    fontWeight: '900',
+  },
+
+  careerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    gap: 12,
   },
-  gridCard: {
-    width: '48%',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  gridValue: { fontSize: 20, fontWeight: '900' },
-  gridLabel: { fontSize: 8.5, fontWeight: '800', marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
-
-  activityCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  activityTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  activityIcon: { marginRight: 8 },
-  activityTitle: { fontSize: 14, fontWeight: '800' },
-  activityTime: { fontSize: 11 },
-  activityDivider: { height: 1, marginVertical: 12 },
-  activityStatsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 },
-  activityStat: { flex: 1, alignItems: 'center' },
-  activityStatValue: { fontSize: 16, fontWeight: '800' },
-  activityStatLabel: { fontSize: 8, fontWeight: '800', marginTop: 2, letterSpacing: 0.5 },
-  activityStatDivider: { width: 1, height: '100%' },
-  activityPainBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 82, 82, 0.1)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginTop: 12,
-  },
-  activityPainText: { color: '#ff5252', fontSize: 10, fontWeight: 'bold', marginLeft: 4 },
-
-  noHistoryCard: {
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    marginBottom: 20,
-  },
-  noHistoryText: {
-    fontSize: 12.5,
-    textAlign: 'center',
-  },
-
-  // Duolingo-style streak modal popout stylesheet classes
-  modalOverlay: {
+  careerCard: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    minWidth: '45%',
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  careerValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  careerLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+
+  logsSection: {
+    marginTop: 8,
+  },
+  logCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 16,
+  },
+  logHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderColor: '#E2E4DE',
+    paddingBottom: 8,
+  },
+  logTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logName: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  logTime: {
+    fontSize: 13,
+  },
+  logStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  logStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  logStatValue: {
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  logStatLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+
+  /* Modals */
+  modalBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 340,
     borderRadius: 24,
     borderWidth: 1,
     padding: 24,
-    alignItems: 'center',
-    position: 'relative',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  modalFlameWrapper: {
-    marginTop: 20,
-    marginBottom: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCloseBtn: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: 4,
-    zIndex: 99,
-  },
-  modalStreakNum: {
-    fontSize: 64,
-    fontWeight: '900',
-    textAlign: 'center',
-    color: '#ffb020',
-  },
-  modalStreakLabel: {
-    fontSize: 14,
-    fontWeight: '900',
-    textTransform: 'lowercase',
-    textAlign: 'center',
-    marginTop: 2,
-    letterSpacing: 0.5,
-    color: '#ffb020',
-  },
-  modalCalendarCard: {
-    width: '100%',
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginVertical: 20,
-  },
-  modalWeekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  modalWeekDayItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  modalWeekDayLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  checkedCircleOrange: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#ffb020',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uncheckedCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    backgroundColor: 'transparent',
-  },
-  modalExplanation: {
-    fontSize: 11.5,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  modalGotItBtn: {
-    paddingVertical: 15,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-  },
-  modalGotItText: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 14.5,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  showMoreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 8,
-    marginBottom: 20,
-    width: '100%',
-  },
-  showMoreText: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  explainModalTitle: {
+  modalTitle: {
     fontSize: 20,
     fontWeight: '900',
-    marginBottom: 8,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: 'center',
   },
-  explainModalSub: {
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  explainScaleContainer: {
-    width: '100%',
+  btnStart: {
+    minHeight: 52,
     borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  btnStartText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    fontSize: 16,
+  },
+
+  /* Effort modal details */
   explainZoneItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginVertical: 8,
+    marginVertical: 12,
   },
   zoneDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 5,
-    marginRight: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 6,
+    marginRight: 12,
   },
   explainZoneTextCol: {
     flex: 1,
   },
   explainZoneTitle: {
-    fontSize: 10.5,
+    fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   explainZoneDesc: {
-    fontSize: 10.5,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

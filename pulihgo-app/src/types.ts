@@ -1,5 +1,5 @@
-// src/types.ts
-// Single source of truth for shared types. Import from here everywhere —
+﻿// src/types.ts
+// Single source of truth for shared types. Import from here everywhere ΓÇö
 // never redefine Session/RepMetric/Angles locally in a screen or module.
 
 /** The three rotation axes we get from the phone. */
@@ -41,5 +41,5 @@ export interface ExerciseConfig {
   name: string;
   axis: Axis;            // which fused angle to measure/score
   targetRomDeg: number;  // the goal we nudge toward
-  romCeilingDeg: number; // SAFETY cap — never reward going past this
+  romCeilingDeg: number; // SAFETY cap ΓÇö never reward going past this
 }

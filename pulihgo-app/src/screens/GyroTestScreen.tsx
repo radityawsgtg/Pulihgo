@@ -11,9 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 interface GyroTestScreenProps {
   theme: 'dark' | 'light';
   toggleTheme: () => void;
+  onExit?: () => void;
 }
 
-export default function GyroTestScreen({ theme, toggleTheme }: GyroTestScreenProps) {
+export default function GyroTestScreen({ theme, toggleTheme, onExit }: GyroTestScreenProps) {
   const { angles, granted } = useDeviceAngle(50);
   const lastLog = useRef(0);
 
@@ -57,6 +58,16 @@ export default function GyroTestScreen({ theme, toggleTheme }: GyroTestScreenPro
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
       <View style={styles.header}>
+        {onExit && (
+          <Pressable
+            onPress={onExit}
+            style={[styles.backBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={18} color={colors.title} />
+          </Pressable>
+        )}
         <Text style={styles.headerLabel}>DEVELOPER TELEMETRY</Text>
         <View style={styles.headerTitleRow}>
           <Text style={[styles.title, { color: colors.title }]}>Gyroscope test</Text>
@@ -86,6 +97,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     position: 'relative',
     width: '100%',
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 0,
+    top: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   headerLabel: {
     color: '#00e5ff',
