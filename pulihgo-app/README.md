@@ -60,18 +60,26 @@ raw axes — use it to confirm which axis your forearm rotation drives, then set
 ## Code map
 
 ```
-pulihgo-app/
-├── App.tsx                 # entry — tabs: Exercise / Gyro test / Progress / Summary
-├── src/
-│   ├── types.ts            # shared types (single source of truth)
-│   ├── sensors/            # ✅ angle reading + calibration (Radit)
-│   ├── metrics/            # rep detection, ROM, smoothness (Pradipta)
-│   ├── progress/           # streak + adherence metrics, local only (Radit)
-│   ├── safety/             # ROM ceiling + pain check (Sulthan)
-│   ├── storage/            # local session storage (Sulthan)
-│   └── screens/            # the UI screens
-└── docs/                   # everything above
+GARUDA7.0/
+├── pulihgo-app/            # 📱 the patient app (Expo / React Native)
+│   ├── App.tsx             # entry — tabs: Home / Exercise / Summary / Gyro test
+│   ├── src/
+│   │   ├── types.ts        # shared types (single source of truth)
+│   │   ├── sensors/        # ✅ angle reading + calibration (Radit)
+│   │   ├── metrics/        # rep detection, ROM, smoothness (Pradipta)
+│   │   ├── progress/       # streak + adherence metrics, local only (Radit)
+│   │   ├── safety/         # ROM ceiling + pain check (Radit)
+│   │   ├── storage/        # local session storage — AsyncStorage (Radit)
+│   │   ├── sync/           # ⬆ uploadSession · ⬇ fetchPrescription (Supabase)
+│   │   ├── exercises/      # exercise catalogue — ships exactly one
+│   │   └── screens/        # the UI screens
+│   └── docs/               # everything above
+└── therapist-dashboard/    # 💻 the therapist web app (React + Vite + Recharts)
+    └── src/lib/supabase.ts # every query lives here
 ```
+
+Both halves talk **only** through Supabase — never to each other. See
+[`docs/02-architecture.md`](./docs/02-architecture.md).
 
 ## End goal
 
