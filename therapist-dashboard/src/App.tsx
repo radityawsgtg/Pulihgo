@@ -336,15 +336,18 @@ export default function App() {
             <table className="sched-table">
               <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Target</th><th>Status</th></tr></thead>
               <tbody>
-                {EXERCISES.map((ex, i) => (
-                  <tr key={i}>
-                    <td className="fw-600">{ex.name}</td>
-                    <td className="center">{ex.sets}</td>
-                    <td className="center">{ex.reps}</td>
-                    <td className="center color-cyan">{ex.target}</td>
-                    <td><span className={`badge badge-${ex.status === 'Active' ? 'active' : ex.status === 'Completed' ? 'done' : 'upcoming'}`}>{ex.status}</span></td>
-                  </tr>
-                ))}
+                {EXERCISES.map((ex, i) => {
+                  const isForearm = i === 0;
+                  return (
+                    <tr key={i}>
+                      <td className="fw-600">{ex.name}</td>
+                      <td className="center">{ex.sets}</td>
+                      <td className="center">{isForearm ? saved.targetReps : ex.reps}</td>
+                      <td className="center color-cyan">{isForearm ? `${saved.targetRom}°` : ex.target}</td>
+                      <td><span className={`badge badge-${ex.status === 'Active' ? 'active' : ex.status === 'Completed' ? 'done' : 'upcoming'}`}>{ex.status}</span></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
