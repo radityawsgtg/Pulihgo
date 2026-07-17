@@ -159,7 +159,22 @@ export default function ProgressScreen({
   const isSelectedToday = selectedKey === dayKey(Date.now());
 
   // Filter sessions for selected date
-  const daySessions = sessions.filter((s) => dayKey(s.startedAt) === selectedKey);
+  const mappedDbSessions = dbSessions !== null ? dbSessions.map((s, idx) => {
+    const end = new Date(s.created_at).getTime();
+    return {
+      id: `db_${idx}`,
+      exerciseId: 'forearm_supination',
+      startedAt: end - s.duration_ms,
+      endedAt: end,
+      reps: Array.from({ length: s.reps }),
+      peakRomDeg: s.peak_rom,
+      avgSmoothness: 0.85,
+      pain: s.pain_flag,
+    };
+  }) : null;
+
+  const activeSessions = mappedDbSessions !== null ? mappedDbSessions : sessions;
+  const daySessions = activeSessions.filter((s) => dayKey(s.startedAt) === selectedKey);
   const hasSelectedPractice = daySessions.length > 0;
 
   const dailyTarget = 2;
