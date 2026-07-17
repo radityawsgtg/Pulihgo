@@ -132,10 +132,8 @@ export default function ProgressScreen({
   
   // Date tracking
   const [selectedDate, setSelectedDate] = useState(Date.now());
-  const [showStreakModal, setShowStreakModal] = useState(false);
   const [showStrainExplainer, setShowStrainExplainer] = useState(false);
   const [clickCount, setClickCount] = useState(0);
-  const [modalClickCount, setModalClickCount] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
 
   const selectedKey = dayKey(selectedDate);
@@ -144,11 +142,6 @@ export default function ProgressScreen({
   // Filter sessions for selected date
   const daySessions = sessions.filter((s) => dayKey(s.startedAt) === selectedKey);
   const hasSelectedPractice = daySessions.length > 0;
-
-  // Streak calculations
-  const streakInfo = computeStreak(sessions);
-  const streak = streakInfo.current;
-  const bestRun = sessions.length ? Math.max(streakInfo.best, 2) : 0; // Seeding mock or real streak
 
   const dailyTarget = 2;
   const sessionsToday = daySessions.length;
@@ -163,15 +156,7 @@ export default function ProgressScreen({
     : 0;
   const smoothnessPercent = Math.round(dayAvgSmoothness * 100);
 
-  // Trigger modal helper
-  useEffect(() => {
-    if (showStreakModal) {
-      const timer = setTimeout(() => {
-        setModalClickCount((c) => c + 1);
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [showStreakModal]);
+
 
   const isDark = theme === 'dark';
   const colors = {
@@ -274,9 +259,7 @@ export default function ProgressScreen({
     return sessions.some((s) => dayKey(s.startedAt) === key);
   };
 
-  const handleStreakBannerPress = () => {
-    setShowStreakModal(true);
-  };
+
 
   return (
     <View style={[styles.flexRoot, { backgroundColor: colors.bg }]}>
@@ -473,24 +456,7 @@ export default function ProgressScreen({
               )}
             </Pressable>
 
-            {/* Streak Banner */}
-            <Pressable
-              onPress={handleStreakBannerPress}
-              style={[styles.streakBanner, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
-              accessibilityRole="button"
-            >
-              <View style={styles.streakLeft}>
-                <Ionicons name="flame" size={32} color={colors.caution} />
-                <View>
-                  <Text style={[styles.streakTitle, { color: colors.title }]}>{streak} Day Streak</Text>
-                  <Text style={[styles.streakSub, { color: colors.body }]}>Practice recorded daily.</Text>
-                </View>
-              </View>
-              <View style={styles.streakRight}>
-                <Text style={[styles.bestStreakLbl, { color: colors.body }]}>BEST RUN</Text>
-                <Text style={[styles.bestStreakVal, { color: colors.caution }]}>{bestRun}d</Text>
-              </View>
-            </Pressable>
+
 
             {/* All-time Career Stats Grid */}
             <Text style={[styles.sectionTitle, { color: colors.title, marginBottom: 12 }]}>All-Time Stats</Text>
@@ -513,12 +479,7 @@ export default function ProgressScreen({
                 </Text>
                 <Text style={[styles.careerLabel, { color: colors.body }]}>BEST ROM REACHED</Text>
               </View>
-              <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-                <Text style={[styles.careerValue, { color: colors.title }]}>
-                  {streak} days
-                </Text>
-                <Text style={[styles.careerLabel, { color: colors.body }]}>CURRENT STREAK</Text>
-              </View>
+
             </View>
 
             {/* Activity Logs */}
@@ -558,21 +519,7 @@ export default function ProgressScreen({
         )}
       </ScrollView>
 
-      {/* ============ MODAL STREAK EXPLATION ============ */}
-      <Modal visible={showStreakModal} transparent animationType="slide" onRequestClose={() => setShowStreakModal(false)}>
-        <View style={styles.modalBg}>
-          <View style={[styles.modalCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-            <Ionicons name="flame" size={60} color={colors.caution} style={{ alignSelf: 'center', marginBottom: 12 }} />
-            <Text style={[styles.modalTitle, { color: colors.title }]}>Consistent Practice</Text>
-            <Text style={[styles.modalText, { color: colors.body }]}>
-              Practice your movements every day to unlock your current streak. Keeping a streak helps stimulate brain pathways for consistent motor recovery.
-            </Text>
-            <Pressable onPress={() => setShowStreakModal(false)} style={[styles.btnStart, { backgroundColor: colors.accent, width: '100%', marginTop: 16 }]} accessibilityRole="button">
-              <Text style={styles.btnStartText}>Got it</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+
 
       {/* ============ MODAL EFFORT EXPLAINER ============ */}
       <Modal visible={showStrainExplainer} transparent animationType="slide" onRequestClose={() => setShowStrainExplainer(false)}>
