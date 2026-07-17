@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar
 } from 'recharts';
 import './App.css';
-import { fetchSessions, type DbSession } from './lib/supabase';
+import { fetchSessions, fetchPrescription, upsertPrescription, type DbSession } from './lib/supabase';
 
 /* ─── Database types ─── */
 interface SessionData {
@@ -165,7 +165,10 @@ export default function App() {
     loadSessions();
   }, [loadSessions]);
 
-  // Prescription
+  // Prescription — read from and written to Supabase `prescriptions`.
+  // These defaults are what the form shows before the fetch lands, and if the
+  // therapist has never set a prescription. They mirror the phone's offline
+  // fallback so the two never disagree about what "unset" means.
   const [targetRom, setTargetRom]   = useState(80);
   const [romCeiling, setRomCeiling] = useState(90);
   const [targetReps, setTargetReps] = useState(10);
@@ -173,6 +176,41 @@ export default function App() {
   const [saved, setSaved]           = useState({ targetRom:80, romCeiling:90, targetReps:10, exercise:'Forearm supination/pronation' });
   const [toast, setToast]           = useState(false);
   const [valErr, setValErr]         = useState<string|null>(null);
+  const [rxStatus, setRxStatus]     = useState<'loading' | 'ready' | 'error'>('loading');
+  const [rxError, setRxError]       = useState<string|null>(null);
+  const [saving, setSaving]         = useState(false);
+
+  // Load the existing prescription once, so the therapist edits what is
+  // actually in force rather than starting from blank defaults every visit.
+  const loadPrescription = useCallback(async () => {
+    setRxStatus('loading');
+    setRxError(null);
+    try {
+      const rx = await fetchPrescription(PATIENT_ID);
+      if (rx) {
+        setTargetRom(rx.target_rom);
+        setRomCeiling(rx.rom_ceiling);
+        setTargetReps(rx.target_reps);
+        // Functional form keeps `exercise` out of this callback's closure, so
+        // it needs no dependency and can't go stale.
+        setSaved((prev) => ({
+          targetRom: rx.target_rom,
+          romCeiling: rx.rom_ceiling,
+          targetReps: rx.target_reps,
+          exercise: prev.exercise,
+        }));
+      }
+      // rx === null → no prescription set yet; keep the defaults above.
+      setRxStatus('ready');
+    } catch (e) {
+      setRxError(e instanceof Error ? e.message : String(e));
+      setRxStatus('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPrescription();
+  }, [loadPrescription]);
 
   // Settings
   const [patientName, setPatientName] = useState('Budi Setiawan');
@@ -180,13 +218,30 @@ export default function App() {
   const [notifications, setNotifications] = useState(true);
   const [language, setLanguage]       = useState('English');
 
-  const onSave = (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (romCeiling <= targetRom) { setValErr('ROM ceiling must be greater than Target ROM.'); return; }
     setValErr(null);
-    setSaved({ targetRom, romCeiling, targetReps, exercise });
-    setToast(true);
-    setTimeout(() => setToast(false), 3000);
+    setSaving(true);
+    setRxError(null);
+    try {
+      await upsertPrescription({
+        patient_id: PATIENT_ID,
+        target_rom: targetRom,
+        rom_ceiling: romCeiling,
+        target_reps: targetReps,
+      });
+      // Only reflect the new plan in the charts once the write actually
+      // succeeded — otherwise the reference lines would promise a target the
+      // patient's phone will never receive.
+      setSaved({ targetRom, romCeiling, targetReps, exercise });
+      setToast(true);
+      setTimeout(() => setToast(false), 3000);
+    } catch (err) {
+      setRxError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Derived stats — all computed from `sessions` (real Supabase data), never
@@ -369,9 +424,12 @@ export default function App() {
               </div>
               <div className="fg"><label>Reps / Session</label><input type="number" value={targetReps} onChange={e => setTargetReps(+e.target.value||0)} min={1} max={50}/></div>
               {valErr && <div className="form-err"><IconShield size={14} color="#ff5252"/><span>{valErr}</span></div>}
-              <button type="submit" className="rx-save">Update Prescription</button>
+              {rxError && <div className="form-err"><IconShield size={14} color="#ff5252"/><span>Could not reach the database: {rxError}</span></div>}
+              <button type="submit" className="rx-save" disabled={saving || rxStatus === 'loading'}>
+                {saving ? 'Saving…' : rxStatus === 'loading' ? 'Loading…' : 'Update Prescription'}
+              </button>
             </form>
-            {toast && <div className="form-ok"><IconCheck size={14} color="#00e676"/><span>Prescription updated!</span></div>}
+            {toast && <div className="form-ok"><IconCheck size={14} color="#00e676"/><span>Prescription saved — the patient's phone will pick it up.</span></div>}
           </div>
         </div>
       </div>
@@ -541,8 +599,15 @@ export default function App() {
           {tabContent[tab]()}
         </main>
 
+        {/* Say exactly which parts are real. The old blanket "mock dashboard,
+            tidak terhubung database" is no longer true: Reports, the Dashboard
+            KPIs and the Clinical Prescription form now read/write a real
+            Supabase database. A wrong honesty label is still a wrong label. */}
         <footer className="glass-footer">
-          <p>* Mock dashboard — data ilustrasi, tidak terhubung database production *</p>
+          <p>
+            Reports, Dashboard KPI &amp; Clinical Prescription: <strong>data pasien asli</strong> (Supabase).
+            {' '}My Journal, Session Schedule &amp; Prescribed Exercises: data ilustrasi.
+          </p>
         </footer>
       </div>
     </div>
