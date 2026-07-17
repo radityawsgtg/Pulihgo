@@ -1,14 +1,26 @@
 // src/screens/ExerciseScreen.tsx
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCalibratedAngle } from '../sensors/useCalibratedAngle';
 import { RepDetector } from '../metrics/repDetector';
 import { smoothness } from '../metrics/smoothness';
 import { isPastCeiling, PAIN_OPTIONS } from '../safety/safety';
 import { sessionStore } from '../storage/sessionStore';
+import { playTargetReached, playCeilingWarning, stopCeilingWarning } from '../audio/soundManager';
 import type { Axis, PainLevel, RepMetric, SessionSummary, ExerciseConfig } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+
+/**
+ * Exercise ROM zones — used to decide when to trigger transition sounds.
+ * "below"      = angle < targetRomDeg
+ * "at_target"  = targetRomDeg ≤ angle ≤ romCeilingDeg
+ * "at_ceiling" = angle > romCeilingDeg
+ */
+type ExerciseZone = 'below' | 'at_target' | 'at_ceiling';
+
+const SOUND_PREF_KEY = 'pulihgo.sound.enabled';
 
 const SAMPLE_MS = 50;
 
@@ -33,6 +45,26 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
   const [justSaved, setJustSaved] = useState<PainLevel | null>(null);
+
+  // ---- Sound toggle (persisted via AsyncStorage) ----
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(SOUND_PREF_KEY).then((v) => {
+      if (v !== null) setSoundEnabled(v === 'true');
+    }).catch(() => { /* non-fatal */ });
+  }, []);
+
+  const toggleSound = () => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem(SOUND_PREF_KEY, String(next)).catch(() => { /* non-fatal */ });
+      return next;
+    });
+  };
+
+  // ---- Zone tracking for sound triggers ----
+  const previousZoneRef = useRef<ExerciseZone>('below');
   
   // Initialize RepDetector with config-driven target ROM
   const detector = useRef(new RepDetector({ targetRomDeg: config.targetRomDeg }));
@@ -71,6 +103,7 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
     setPeak(0);
     setJustSaved(null);
     setAsking(false);
+    previousZoneRef.current = 'below'; // reset zone after re-calibration
     setStartedAt(Date.now());
   };
 
@@ -115,6 +148,38 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
   const past = isPastCeiling(value, config.romCeilingDeg);
   const absAngle = Math.abs(value);
   const romPercent = Math.min(100, Math.round((absAngle / config.targetRomDeg) * 100));
+
+  // ---- Derive current zone & trigger sounds on specific transitions ----
+  const currentZone: ExerciseZone = past
+    ? 'at_ceiling'
+    : absAngle >= config.targetRomDeg
+      ? 'at_target'
+      : 'below';
+
+  // Sound trigger runs inside a useEffect so it only fires on zone *changes*,
+  // not every render frame.
+  useEffect(() => {
+    if (!running) return;
+    const prev = previousZoneRef.current;
+    if (prev === currentZone) return; // same zone — no transition
+
+    // Stop ceiling loop when leaving ceiling zone (regardless of sound toggle)
+    if (prev === 'at_ceiling' && currentZone !== 'at_ceiling') {
+      stopCeilingWarning();
+    }
+
+    // Only trigger sound on specific UPWARD transitions:
+    if (soundEnabled) {
+      if (prev === 'below' && currentZone === 'at_target') {
+        playTargetReached();
+      } else if (prev === 'at_target' && currentZone === 'at_ceiling') {
+        playCeilingWarning();
+      }
+      // All other transitions (downward, or below→ceiling skip) = NO SOUND.
+    }
+
+    previousZoneRef.current = currentZone;
+  }, [currentZone, running, soundEnabled]);
 
   // Determine feedback messaging
   let gaugeColor = colors.accent;
@@ -223,14 +288,24 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
                 <Ionicons name="chevron-back-outline" size={24} color={colors.title} />
               </Pressable>
               <Text style={[styles.activeLabel, { color: colors.accent }]}>SESSION IN PROGRESS</Text>
-              <Pressable
-                onPress={toggleTheme}
-                style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
-                accessibilityRole="button"
-                accessibilityLabel="Toggle Theme"
-              >
-                <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.title} />
-              </Pressable>
+              <View style={styles.headerActions}>
+                <Pressable
+                  onPress={toggleSound}
+                  style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={soundEnabled ? 'Mute sound effects' : 'Enable sound effects'}
+                >
+                  <Ionicons name={soundEnabled ? 'volume-high-outline' : 'volume-mute-outline'} size={18} color={colors.title} />
+                </Pressable>
+                <Pressable
+                  onPress={toggleTheme}
+                  style={[styles.themeBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Toggle Theme"
+                >
+                  <Ionicons name={isDark ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.title} />
+                </Pressable>
+              </View>
             </View>
             <Text style={[styles.exerciseName, { color: colors.title }]}>{config.name}</Text>
           </View>
@@ -396,6 +471,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     marginBottom: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   activeLabel: {
     fontSize: 13,
