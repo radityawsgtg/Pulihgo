@@ -9,6 +9,7 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Dimensions, Animated, Easing, Pressable } from 'react-native';
 import { useSessions } from '../storage/sessionStore';
+import { usePrescription } from '../sync/usePrescription';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -41,7 +42,13 @@ interface SummaryScreenProps {
 
 export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps) {
   const sessions = useSessions();
+  const { rx } = usePrescription();
   const last = sessions[0];
+
+  // The therapist's safe limit, not a hardcoded 90. ExerciseScreen already
+  // measures against this — the summary has to agree with it, or the app
+  // warns at one number and reports against another.
+  const ceilingDeg = rx.romCeilingDeg;
 
   const size = 150;
   const strokeWidth = 8;
@@ -104,42 +111,46 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
     gaugeColor = "#00e5ff"; // cyan for good
   }
 
-  // Detailed clinical report card generator (replaces generic AI filler copy)
-  let feedbackTitle = "Optimal Practice Quality";
+  // Session feedback.
+  //
+  // GUARDRAIL 1 (no diagnostic claims) + GUARDRAIL 2 (no unsourced clinical
+  // statements). This card reports WHAT WAS MEASURED and suggests how to move
+  // next time. It must never name a condition ("tremor", "spasticity"), and it
+  // must never explain a physiological mechanism — we have no source for any of
+  // that, and PulihGo measures and motivates, it does not diagnose.
+  //
+  // Coaching cues ("slow down", "keep your elbow at your side") are fine: they
+  // describe the movement we asked for, not a clinical judgement about the body.
+  let feedbackTitle = "Good, controlled session";
   let feedbackColor = "#00e676";
   let feedbackIcon = "checkmark-circle-outline";
   let assessment = "";
-  let neuroImpact = "";
   let nextCue = "";
 
   if (last.pain === 'stopped') {
-    feedbackTitle = "Discomfort Hold Triggered";
+    feedbackTitle = "You stopped this session";
     feedbackColor = "#ff5252";
-    feedbackIcon = "alert-circle-outline"; // FIXED warning icon name
-    assessment = "Practice session was suspended due to acute physical joint discomfort.";
-    neuroImpact = "Stopping immediately when joint pain is felt avoids tissue strain and neural guarding (spasm reflex), which protects your motor coordination long term.";
-    nextCue = "Rest the affected limb. In your next session, adjust your focus to extremely slow rotation sweeps and restrict your movement strictly within a pain-free range (e.g. 30°-45°).";
-  } else if (last.peakRomDeg > 90) {
-    feedbackTitle = "Ceiling Warning: Hyperextension";
+    feedbackIcon = "alert-circle-outline";
+    assessment = "You ended this session because it hurt. That's recorded for your therapist, and it still counts towards your streak.";
+    nextCue = "Rest the arm. Next session, stay well inside the range that feels comfortable — there's no target worth pushing through pain for.";
+  } else if (last.peakRomDeg > ceilingDeg) {
+    feedbackTitle = "Above your safe range";
     feedbackColor = "#ffb020";
     feedbackIcon = "warning-outline";
-    assessment = `You rotated to a peak ROM of ${last.peakRomDeg.toFixed(0)}°, which exceeds the safe ceiling limit threshold of 90°.`;
-    neuroImpact = "Excessive rotation during early subacute phases can cause ligament laxity and joint subluxation, particularly when surrounding stabilizing muscles are weak.";
-    nextCue = "For your next session, prioritize safety by restricting your rotation below 90°. Focus on movement control at a moderate 65°-70° rather than maximum range.";
+    assessment = `Your furthest rotation was ${last.peakRomDeg.toFixed(0)}°, past the ${ceilingDeg}° safe limit your therapist set.`;
+    nextCue = `Keep your rotations under ${ceilingDeg}°. Controlled movement inside the range counts for more here than going further.`;
   } else if (last.avgSmoothness < 0.60) {
-    feedbackTitle = "Coordination Alert: Tremor";
+    feedbackTitle = "Less steady than a smooth sweep";
     feedbackColor = "#ffb020";
     feedbackIcon = "pulse-outline";
-    assessment = `Rotation was performed with a smoothness of ${smoothnessPercent}%, indicating active muscle hitching or tremor.`;
-    neuroImpact = "Rapid or jerky rotations recruit secondary compensatory muscle groups (e.g. shoulder hiking) instead of isolating the primary forearm rotator muscles.";
-    nextCue = "Slow down. Tuck your elbow tightly into your side to isolate the rotation, and perform each repetition at half your current speed.";
+    assessment = `Your smoothness score was ${smoothnessPercent}% — this session's rotations changed speed more than a steady, even sweep would.`;
+    nextCue = "Try it at about half this speed, and keep your elbow resting against your side.";
   } else {
-    feedbackTitle = "Optimal Practice Quality";
+    feedbackTitle = "Good, controlled session";
     feedbackColor = "#00e676";
     feedbackIcon = "ribbon-outline";
-    assessment = `Rotations completed successfully with high fluid coordination (${smoothnessPercent}% smoothness) and a safe range of ${last.peakRomDeg.toFixed(0)}°.`;
-    neuroImpact = "Smooth, slow rotations optimize the brain's motor cortex remodeling, strengthening the synaptic pathways linking intention to execution.";
-    nextCue = "Maintain this exact motion velocity. Focus on adding a brief 1-second pause at the peak of your next forearm rotation set.";
+    assessment = `Smoothness ${smoothnessPercent}%, furthest rotation ${last.peakRomDeg.toFixed(0)}° — inside your ${ceilingDeg}° safe limit.`;
+    nextCue = "Keep this pace. Try holding for one second at the furthest point of each rotation.";
   }
 
   const painTextMap = {
@@ -170,24 +181,26 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
   let statVal3Color = colors.title;
 
   if (last) {
-    if (last.peakRomDeg > 90) {
+    if (last.peakRomDeg > ceilingDeg) {
       showBar = true;
       const peak = last.peakRomDeg;
-      // safe up to 90
-      barSafeWidth = (Math.min(peak, 90) / 120) * 100;
-      barWarnWidth = peak > 90 ? ((peak - 90) / 120) * 100 : 0;
-      barMarkerPosition = 75; // (90 / 120) * 100
-      barValueText = `${peak.toFixed(0)}° / 90° limit`;
-      barLabelText = "PEAK ROTATION RANGE";
+      // Scale the bar to the overshoot so it stays readable however far past
+      // the limit the reading went (a stray 173° would otherwise blow it out).
+      const barMax = Math.max(peak, ceilingDeg) * 1.15;
+      barSafeWidth = (Math.min(peak, ceilingDeg) / barMax) * 100;
+      barWarnWidth = ((peak - ceilingDeg) / barMax) * 100;
+      barMarkerPosition = (ceilingDeg / barMax) * 100;
+      barValueText = `${peak.toFixed(0)}° / ${ceilingDeg}° limit`;
+      barLabelText = "FURTHEST ROTATION";
       barFooterLeft = "0°";
-      barFooterMarker = "90° LIMIT";
-      barFooterRight = "120°";
-      
+      barFooterMarker = `${ceilingDeg}° LIMIT`;
+      barFooterRight = `${barMax.toFixed(0)}°`;
+
       showWarningStats = true;
       statVal1 = `${peak.toFixed(0)}°`;
-      statVal2 = "90°";
-      statVal3 = `+${(peak - 90).toFixed(0)}°`;
-      statLbl1 = "PEAK ROTATION";
+      statVal2 = `${ceilingDeg}°`;
+      statVal3 = `+${(peak - ceilingDeg).toFixed(0)}°`;
+      statLbl1 = "FURTHEST";
       statLbl2 = "SAFE LIMIT";
       statLbl3 = "OVER LIMIT";
       statVal1Color = "#ff5252"; // red
@@ -450,21 +463,16 @@ export default function SummaryScreen({ theme, toggleTheme }: SummaryScreenProps
           </View>
         )}
 
-        {/* Structured Medical Sections */}
+        {/* Session feedback. Labelled "THIS SESSION", not "CLINICAL
+            ASSESSMENT" — we report measurements, we don't assess anyone.
+            The old "NEUROLOGICAL IMPACT" section is gone: every line in it was
+            an invented mechanism with no source (guardrail 2). */}
         <View style={styles.insightSection}>
           <View style={styles.insightSectionHeader}>
             <Ionicons name="pulse" size={14} color={feedbackColor} style={{ marginRight: 6 }} />
-            <Text style={[styles.reportSectionLabel, { color: colors.body }]}>CLINICAL ASSESSMENT</Text>
+            <Text style={[styles.reportSectionLabel, { color: colors.body }]}>THIS SESSION</Text>
           </View>
           <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{assessment}</Text>
-        </View>
-
-        <View style={styles.insightSection}>
-          <View style={styles.insightSectionHeader}>
-            <Ionicons name="git-network-outline" size={14} color={feedbackColor} style={{ marginRight: 6 }} />
-            <Text style={[styles.reportSectionLabel, { color: colors.body }]}>NEUROLOGICAL IMPACT</Text>
-          </View>
-          <Text style={[styles.reportSectionText, { color: colors.highlight }]}>{neuroImpact}</Text>
         </View>
 
         <View style={styles.insightSection}>

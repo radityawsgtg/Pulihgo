@@ -89,16 +89,23 @@ function toSessionData(row: DbSession): SessionData {
 }
 
 /* ─── Session Schedule mock data ───
-   Deliberately NOT derived from real sessions — the therapist/session-type
-   names here are illustrative UI only (per the task: Session Schedule stays
-   mock), decoupled from the real Supabase fetch below so it renders the same
-   regardless of loading/error/empty state. */
-const SCHEDULE_MOCK_TIMES = [
-  Date.now() - 6 * 86400000,
-  Date.now() - 5 * 86400000,
-  Date.now() - 4 * 86400000,
-  Date.now() - 3 * 86400000,
-  Date.now() - 2 * 86400000,
+   Illustrative UI only (per the task: Session Schedule stays mock), decoupled
+   from the real Supabase fetch below so it renders the same regardless of
+   loading/error/empty state.
+
+   Every entry is this patient's own plan with their own therapist. It used to
+   list four different doctors running "Art Therapy", "Stress Management" and
+   "Family Counseling" — none of which this product does, and none of which one
+   patient's forearm rehab schedule would contain. Mock data still has to be
+   data the product could plausibly produce. */
+const THERAPIST_NAME = 'Carl Manfred';
+
+const SCHEDULE_MOCK = [
+  { at: Date.now() - 6 * 86400000, type: 'Home practice — forearm rotation' },
+  { at: Date.now() - 5 * 86400000, type: 'Home practice — forearm rotation' },
+  { at: Date.now() - 4 * 86400000, type: 'Clinic review — ROM assessment' },
+  { at: Date.now() - 3 * 86400000, type: 'Home practice — forearm rotation' },
+  { at: Date.now() - 2 * 86400000, type: 'Clinic review — prescription update' },
 ];
 
 /* ─── Therapy exercises ─── */
@@ -304,12 +311,12 @@ export default function App() {
             <table className="sched-table">
               <thead><tr><th>Therapist</th><th>Time</th><th>Date</th><th>Session type</th></tr></thead>
               <tbody>
-                {SCHEDULE_MOCK_TIMES.map((created_at, i) => (
+                {SCHEDULE_MOCK.map((s, i) => (
                   <tr key={i}>
-                    <td className="therapist-cell"><div className="avatar-dot"></div>Dr. {['Emily Johnson','Michael Taylor','Daniel Chang','Laura Collins','Michael Taylor'][i]}</td>
-                    <td>{new Date(created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</td>
-                    <td>{new Date(created_at).toISOString().slice(0,10)}</td>
-                    <td>{['Individual Therapy','Art Therapy','Stress Management','Family Counseling','Individual Therapy'][i]}</td>
+                    <td className="therapist-cell"><div className="avatar-dot"></div>{THERAPIST_NAME}</td>
+                    <td>{new Date(s.at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</td>
+                    <td>{new Date(s.at).toISOString().slice(0,10)}</td>
+                    <td>{s.type}</td>
                   </tr>
                 ))}
               </tbody>
