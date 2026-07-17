@@ -229,8 +229,13 @@ Connect patient practice to the therapist. This is what a clinic pays for.
 
 ## 18. Accounts + auth
 **What:** Patients and therapists sign in.
-**How it works:** JWT-based auth via the Hono API. Links a patient to a therapist and
-clinic.
+**How it works:** Supabase Auth, with Row Level Security scoping every row to its
+own patient/therapist. Links a patient to a therapist and clinic.
+**Status:** ⚠️ **not built, and it's the gap that matters most.** Everything today
+runs as a hardcoded `patient_id = 'demo01'` in both `uploadSession.ts` and the
+dashboard. Anyone holding the anon key can read and write that table. Acceptable
+for a demo; **not acceptable for a real patient** — this is the gate before
+anyone's actual rehab data goes in.
 **Owner:** `api`
 
 ## 19. Cloud sync
@@ -283,9 +288,13 @@ clinic and catch drop-off early.
 ## 22. Raw signal storage
 **What:** Keep the full sensor time-series for research/validation.
 **How it works:** The heavy raw data (50 Hz × 3 axes) is uploaded as a blob to
-Cloudflare **R2**, keyed by an opaque `session_id` (never by patient name). The light
-per-rep summaries stay in D1 for fast queries. This raw archive becomes the dataset
-for feature 24/25.
+**Supabase Storage**, keyed by an opaque `session_id` (never by patient name). The
+light per-session aggregates stay in Postgres for fast queries. This raw archive
+becomes the dataset for feature 24/25.
+**Status:** not built — and note what that costs: the raw buffer currently **dies
+with the session**. `sessions` stores only aggregates (reps, peak_rom,
+duration_ms, pain_flag), and even the per-rep `RepMetric[]` never leaves the
+phone. Every day of demoing without this is a day of validation data thrown away.
 **Owner:** `api`
 
 ---

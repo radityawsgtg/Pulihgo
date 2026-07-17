@@ -35,7 +35,12 @@ dashboard later. It **supplements, never replaces** a therapist.
 | `src/progress/` | `streak` — adherence metrics over saved sessions (pure, local) | Radit |
 | `src/safety/` | ROM ceiling + pain check | Radit |
 | `src/storage/` | local session storage (AsyncStorage-backed) | Radit |
-| `src/screens/` | `ExerciseScreen` (MVP loop), `GyroTestScreen`, `ProgressScreen`, `SummaryScreen` | Radit |
+| `src/sync/` | Supabase: `uploadSession` (up), `fetchPrescription`/`usePrescription` (down). **Both best-effort — neither may ever block a session.** | Pradipta |
+| `src/exercises/` | `exerciseLibrary` — the exercise catalogue. Ships exactly one. | Sulthan |
+| `src/screens/` | `ExerciseScreen` (MVP loop), `GyroTestScreen`, `ProgressScreen`, `SummaryScreen`, `ExerciseListScreen`, `OnboardingScreen` | Radit |
+
+Outside `pulihgo-app/`: **`therapist-dashboard/`** is the React + Vite therapist
+web app. It shares no code with the phone — the two talk only through Supabase.
 
 ## 4. Glossary (use these exact terms in code + comments)
 

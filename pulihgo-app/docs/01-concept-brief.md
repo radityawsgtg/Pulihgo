@@ -76,15 +76,18 @@ Full flowchart in [`02-architecture.md`](./02-architecture.md); schema in
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Patient app | **React Native (Expo)** + `expo-sensors` | High-rate gyroscope access, runs on judges' phones via QR, TypeScript |
-| Sensor fusion | **Complementary / Madgwick filter** | Gyro + accel → drift-free pitch/roll/yaw angle |
+| Patient app | **React Native (Expo SDK 54)** + `expo-sensors` | High-rate motion access, runs on judges' phones via QR, TypeScript |
+| Sensor fusion | **The OS does it** — `DeviceMotion.rotation` | iOS/Android already fuse gyro + accel into a stable attitude; we zero it and wrap it, we don't write a filter |
 | On-device DSP | Rep detection, peak-ROM, jerk-based smoothness | The "measurement" works fully offline |
-| Game / feedback | React Native Skia (or Canvas) | Lightweight real-time visuals driven by live angle |
-| Backend API | **Hono on Cloudflare Workers** | Edge, cheap, and the team already knows it (SPARTA) |
-| Structured DB | **Cloudflare D1** (SQLite) | Patients, prescriptions, sessions, ROM history |
-| Raw signals | **Cloudflare R2** | Bulk gyro/accel time-series blobs, keyed by session id |
-| Dashboard | **React + Vite + Recharts + Tailwind** | Fast to build, great charts for progress lines |
-| Shared types | `packages/shared` (TypeScript) | One source of truth across all three apps |
+| Local store | **AsyncStorage** | A session is durable on the phone before any network call |
+| Backend | **Supabase** (Postgres + PostgREST) | A database both clients can reach with **no API layer to write** — that's why the two-way loop fit in the sprint |
+| Dashboard | **React 19 + Vite + Recharts** | Fast to build, great charts for progress lines |
+| Game / feedback | *Not built* — Phase 2 | Deliberately last; the measurement has to be true first |
+
+**Two honest notes.** There is no shared-types package: `SessionSummary` on the
+phone and `DbSession` in the dashboard are kept in step by hand. And raw 50 Hz
+signal is **not** stored anywhere — it dies with the session, so feature 24's
+validation dataset does not exist yet.
 
 **Design principle: offline-first.** A full session records with no connectivity
 and syncs later — essential for the semi-rural, patchy-network reality of the
@@ -110,9 +113,9 @@ uses the app free.
   then expand the exercise library.
 - **Moat over time:** the longitudinal movement dataset (with consent) becomes a
   recovery-prediction asset no goniometer can match.
-- **Cost base:** near-zero infra (Cloudflare edge + cheap Android phones patients
-  already own). The expensive part is clinical validation, which is the roadmap,
-  not the MVP.
+- **Cost base:** near-zero infra (a managed Postgres + cheap Android phones
+  patients already own). The expensive part is clinical validation, which is the
+  roadmap, not the MVP.
 
 ## 5. Boundaries (scope — what PulihGo is and is NOT)
 
@@ -150,10 +153,15 @@ guardrails (compensatory-movement and pain warnings).
 
 1. Sensor loop — prove the gyroscope reads a clean forearm-rotation angle live.
 2. On-device rep + peak-ROM detection with a number on screen.
-3. Minimal game reacting to the live angle (the "wow").
-4. API + D1 + a session-sync call.
-5. Dashboard with a progress line + adherence view (seed demo history — say so).
-6. Polish the one exercise you'll demo. Depth over breadth.
+3. Session save + local persistence, with the safety gate wired in.
+4. Sync sessions to Supabase.
+5. Dashboard with a progress line + adherence view, on real session data.
+6. Therapist prescribes → the phone reads that plan (offline-first).
+7. Polish the one exercise you'll demo. Depth over breadth.
+
+The game (feature 13) is **not** in this list — it was step 3 in an earlier
+draft, and cutting it is why steps 4–6 exist at all. Depth over breadth, in
+practice rather than as a slogan.
 
 **The hero demo moment:** rotate your arm → the game responds + live
 "forearm rotation: 62°" ticks up → cut to the therapist dashboard showing a week
