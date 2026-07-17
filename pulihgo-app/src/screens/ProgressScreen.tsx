@@ -1,11 +1,12 @@
 // src/screens/ProgressScreen.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal } from 'react-native';
-import { useSessions } from '../storage/sessionStore';
+import { useSessions, sessionStore } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps, dayKey } from '../progress/streak';
 import type { SessionSummary } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../sync/supabaseClient';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -129,6 +130,24 @@ export default function ProgressScreen({
   toggleTheme,
 }: ProgressScreenProps) {
   const sessions = useSessions();
+  const [dbSessions, setDbSessions] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    if (supabase) {
+      supabase
+        .from('sessions')
+        .select('*')
+        .eq('patient_id', 'demo01')
+        .then(({ data }) => {
+          if (data) {
+            setDbSessions(data);
+            if (data.length === 0 && sessions.length > 0) {
+              sessionStore.clear();
+            }
+          }
+        });
+    }
+  }, [sessions]);
   
   // Date tracking
   const [selectedDate, setSelectedDate] = useState(Date.now());
@@ -155,6 +174,10 @@ export default function ProgressScreen({
     ? daySessions.reduce((sum, s) => sum + s.avgSmoothness, 0) / daySessions.length
     : 0;
   const smoothnessPercent = Math.round(dayAvgSmoothness * 100);
+
+  const displaySessionsCount = dbSessions !== null ? dbSessions.length : sessions.length;
+  const displayTotalReps = dbSessions !== null ? dbSessions.reduce((sum, s) => sum + s.reps, 0) : totalReps(sessions);
+  const displayBestRom = dbSessions !== null ? dbSessions.reduce((max, s) => Math.max(max, s.peak_rom), 0) : bestRomDeg(sessions);
 
 
 
@@ -456,26 +479,24 @@ export default function ProgressScreen({
               )}
             </Pressable>
 
-
-
             {/* All-time Career Stats Grid */}
             <Text style={[styles.sectionTitle, { color: colors.title, marginBottom: 12 }]}>All-Time Stats</Text>
             <View style={styles.careerGrid}>
               <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
                 <Text style={[styles.careerValue, { color: colors.title }]}>
-                  {sessions.length}
+                  {displaySessionsCount}
                 </Text>
                 <Text style={[styles.careerLabel, { color: colors.body }]}>TOTAL SESSIONS</Text>
               </View>
               <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
                 <Text style={[styles.careerValue, { color: colors.title }]}>
-                  {totalReps(sessions)}
+                  {displayTotalReps}
                 </Text>
                 <Text style={[styles.careerLabel, { color: colors.body }]}>TOTAL REPETITIONS</Text>
               </View>
               <View style={[styles.careerCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
                 <Text style={[styles.careerValue, { color: colors.title }]}>
-                  {bestRomDeg(sessions).toFixed(0)}°
+                  {displayBestRom.toFixed(0)}
                 </Text>
                 <Text style={[styles.careerLabel, { color: colors.body }]}>BEST ROM REACHED</Text>
               </View>
