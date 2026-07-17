@@ -1,10 +1,8 @@
 // src/screens/OnboardingScreen.tsx
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Image, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-
-const { width } = Dimensions.get('window');
 
 interface OnboardingScreenProps {
   onDone: () => void;
@@ -18,6 +16,8 @@ const SLIDES = [
     icon: 'medical-outline' as const,
     accent: '#0E7C7B',
     ringBg: '#E1F4F7',
+    backgroundImage: require('../../assets/therapy2.png'),
+    mascotImage: require('../../assets/mascot_hi.png'),
   },
   {
     kicker: 'DAILY TRACKING',
@@ -26,6 +26,8 @@ const SLIDES = [
     icon: 'home-outline' as const,
     accent: '#0E7C7B',
     ringBg: '#E1F4F7',
+    backgroundImage: require('../../assets/therapy3.png'),
+    mascotImage: require('../../assets/mascot_jempot.png'),
   },
   {
     kicker: 'EASY PRACTICE',
@@ -34,6 +36,8 @@ const SLIDES = [
     icon: 'play-circle-outline' as const,
     accent: '#0E7C7B',
     ringBg: '#E1F4F7',
+    backgroundImage: require('../../assets/therapy4.png'),
+    mascotImage: require('../../assets/mascot_tab.png'),
   },
   {
     kicker: 'ALWAYS SAFE',
@@ -42,11 +46,15 @@ const SLIDES = [
     icon: 'shield-checkmark-outline' as const,
     accent: '#D64545',
     ringBg: '#FBE6E4',
+    backgroundImage: require('../../assets/therapy2.png'),
+    mascotImage: require('../../assets/mascot_hi.png'),
   },
 ];
 
 export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(24)).current;
 
   const handleNext = async () => {
     if (currentStep < SLIDES.length - 1) {
@@ -68,25 +76,46 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
     onDone();
   };
 
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(24);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [currentStep, fadeAnim, slideAnim]);
+
   const slide = SLIDES[currentStep];
 
   return (
     <View style={styles.container}>
+      <Image source={slide.backgroundImage} style={styles.backgroundImage} />
+      <View style={styles.backgroundOverlay} />
+
       {/* Top Header Row */}
       <View style={styles.header}>
-        <Text style={styles.logo}>PULIHGO</Text>
+        <Image source={require('../../assets/icon_without_tag.png')} style={styles.logoImage} />
         <Pressable onPress={handleSkip} style={styles.skipButton} accessibilityRole="button">
           <Text style={styles.skipText}>Skip</Text>
         </Pressable>
       </View>
 
       {/* Main Illustration and Text Content */}
-      <View style={styles.content}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Animated outer ring and icon background */}
         <View style={styles.illustrationWrapper}>
           <View style={[styles.outerDashedRing, { borderColor: slide.accent }]} />
           <View style={[styles.iconCircle, { backgroundColor: slide.ringBg }]}>
-            <Ionicons name={slide.icon} size={64} color={slide.accent} />
+            <Image source={slide.mascotImage} style={styles.mascotImage} />
           </View>
         </View>
 
@@ -94,7 +123,7 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
         <Text style={[styles.kicker, { color: slide.accent }]}>{slide.kicker}</Text>
         <Text style={styles.title}>{slide.title}</Text>
         <Text style={styles.body}>{slide.body}</Text>
-      </View>
+      </Animated.View>
 
       {/* Slide Indicators */}
       <View style={styles.indicatorContainer}>
@@ -138,23 +167,35 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAF7',
-    paddingHorizontal: 24,
-    paddingTop: 52,
-    paddingBottom: 32,
-    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+  },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.75)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    height: 48,
+    paddingTop: 56,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    zIndex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
-  logo: {
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
-    color: '#1A1D1A',
+  logoImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
   },
   skipButton: {
     paddingVertical: 8,
@@ -172,6 +213,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     textAlign: 'center',
+    zIndex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 120,
+    paddingBottom: 120,
   },
   illustrationWrapper: {
     width: 160,
@@ -190,9 +235,9 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -200,6 +245,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+  },
+  mascotImage: {
+    width: 96,
+    height: 96,
+    resizeMode: 'contain',
   },
   kicker: {
     fontSize: 12,
@@ -227,6 +277,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 24,
+    zIndex: 1,
   },
   dot: {
     height: 8,
@@ -235,6 +286,9 @@ const styles = StyleSheet.create({
   footerButtons: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    zIndex: 1,
   },
   backButton: {
     flex: 1,

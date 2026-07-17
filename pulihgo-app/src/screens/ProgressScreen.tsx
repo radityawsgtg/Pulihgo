@@ -1,11 +1,12 @@
 // src/screens/ProgressScreen.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Platform, Pressable, Animated, Easing, Modal, Image } from 'react-native';
 import { useSessions, sessionStore } from '../storage/sessionStore';
 import { computeStreak, bestRomDeg, totalReps, dayKey } from '../progress/streak';
 import type { SessionSummary } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../sync/supabaseClient';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -302,10 +303,12 @@ export default function ProgressScreen({
   return (
     <View style={[styles.flexRoot, { backgroundColor: colors.bg }]}>
       <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={styles.scroll}>
+        <Image source={require('../../assets/icon_without_tag.png')} style={styles.screenWatermark} />
+
         {/* Header */}
         <View style={styles.header}>
           <Pressable onLongPress={onEnterDebug} delayLongPress={1500} accessibilityRole="none">
-            <Text style={[styles.brandTitle, { color: colors.title }]}>PULIHGO</Text>
+            <Image source={require('../../assets/icon_without_tag.png')} style={styles.brandLogo} />
           </Pressable>
           
           <View style={styles.headerRight}>
@@ -330,8 +333,15 @@ export default function ProgressScreen({
         </View>
 
         {/* ============ TIER 1: PRIMARY TARGET ACTION (ALWAYS VISIBLE) ============ */}
-        <View style={[styles.primaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.greetingText, { color: colors.body }]}>
+        <View style={[styles.primaryCard, { borderColor: colors.cardBorder }]}> 
+          <LinearGradient
+            colors={isDark ? ['rgba(0,194,194,0.18)', 'rgba(255,255,255,0.02)'] : ['#E1F4F7', '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.primaryCardGradient}
+            pointerEvents="none"
+          />
+          <Text style={[styles.greetingText, { color: colors.body }]}> 
             {isSelectedToday ? "Today's Practice" : shortDate(selectedDate)}
           </Text>
           
@@ -361,27 +371,40 @@ export default function ProgressScreen({
             </View>
           )}
 
-          <Pressable onPress={onStartExercise} style={[styles.btnPrimaryStart, { backgroundColor: colors.accent }]} accessibilityRole="button">
-            <Ionicons name="play" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.btnPrimaryStartText}>Start Exercise</Text>
+          <Pressable onPress={onStartExercise} accessibilityRole="button">
+            <LinearGradient
+              colors={isDark ? ['#00C2C2', '#1A9D9D'] : ['#0E7C7B', '#16A6A4']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.btnPrimaryStart, { backgroundColor: colors.accent }]}
+            >
+              <Ionicons name="play" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.btnPrimaryStartText}>Start Exercise</Text>
+            </LinearGradient>
           </Pressable>
         </View>
 
         {/* ============ TIER 2: PROGRESSIVE DISCLOSURE PROGRESS DETAIL ============ */}
         <Pressable
           onPress={() => setShowDetails(!showDetails)}
-          style={[styles.showMoreBtn, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
           accessibilityRole="button"
         >
-          <Text style={[styles.showMoreText, { color: colors.title }]}>
-            {showDetails ? 'Hide Detailed Stats' : 'See My Progress'}
-          </Text>
-          <Ionicons
-            name={showDetails ? 'chevron-up-outline' : 'chevron-down-outline'}
-            size={18}
-            color={colors.title}
-            style={{ marginLeft: 6 }}
-          />
+          <LinearGradient
+            colors={isDark ? ['#FFFFFF', '#E8F5F4'] : ['#FFFFFF', '#EAF7F7']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.showMoreBtn, { borderColor: colors.cardBorder }]}
+          >
+            <Text style={[styles.showMoreText, { color: colors.title }]}> 
+              {showDetails ? 'Hide Detailed Stats' : 'See My Progress'}
+            </Text>
+            <Ionicons
+              name={showDetails ? 'chevron-up-outline' : 'chevron-down-outline'}
+              size={18}
+              color={colors.title}
+              style={{ marginLeft: 6 }}
+            />
+          </LinearGradient>
         </Pressable>
 
         {showDetails && (
@@ -595,6 +618,15 @@ const styles = StyleSheet.create({
   flexRoot: { flex: 1 },
   container: { flex: 1 },
   scroll: { padding: 20, paddingTop: Platform.OS === 'ios' ? 60 : 40, paddingBottom: 40 },
+  screenWatermark: {
+    position: 'absolute',
+    right: -20,
+    top: 60,
+    width: 220,
+    height: 220,
+    opacity: 0.08,
+    resizeMode: 'contain',
+  },
   
   header: {
     flexDirection: 'row',
@@ -603,10 +635,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     height: 48,
   },
-  brandTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 2,
+  brandLogo: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
   },
   headerRight: {
     flexDirection: 'row',
@@ -639,6 +671,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 12,
     elevation: 2,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#FFFFFF',
+  },
+  primaryCardGradient: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 1,
   },
   greetingText: {
     fontSize: 13,
@@ -684,6 +723,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 10,
     elevation: 3,
+    backgroundColor: '#0E7C7B',
   },
   btnPrimaryStartText: {
     color: '#FFFFFF',
