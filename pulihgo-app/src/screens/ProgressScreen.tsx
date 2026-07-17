@@ -417,14 +417,14 @@ export default function ProgressScreen({
               })}
             </View>
 
-            {/* Three Progress Rings */}
+            {/* Two Progress Rings */}
             <Text style={[styles.sectionTitle, { color: colors.title, marginBottom: 12 }]}>Today's Target Metrics</Text>
             <View style={styles.ringsContainer}>
               <CircularProgress
                 percentage={romPercent}
                 color={colors.accent}
                 label="PEAK ROM"
-                subLabel={hasSelectedPractice ? `${dayBestRom.toFixed(0)}°` : '0°'}
+                subLabel={hasSelectedPractice ? `${dayBestRom.toFixed(0)}` : '0'}
                 theme={theme}
               />
               <CircularProgress
@@ -432,13 +432,6 @@ export default function ProgressScreen({
                 color={colors.safe}
                 label="SMOOTHNESS"
                 subLabel={hasSelectedPractice ? `${smoothnessPercent}%` : '0%'}
-                theme={theme}
-              />
-              <CircularProgress
-                percentage={dosePercent}
-                color={colors.caution}
-                label="DAILY DOSE"
-                subLabel={`${sessionsToday}/${dailyTarget}`}
                 theme={theme}
               />
             </View>
