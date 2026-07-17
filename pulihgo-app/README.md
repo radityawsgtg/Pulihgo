@@ -22,26 +22,75 @@ underused sensor for the job.
 
 ## Run it (5 min)
 
-There are **two apps**, and they need **two terminals**. They never talk to each
-other directly — both talk to Supabase.
+There are **two apps**, and they need **two terminals**, running at the same
+time. They never talk to each other directly — both talk to Supabase.
 
 Full setup + the errors we hit are in [`docs/07-getting-started.md`](./docs/07-getting-started.md).
 
-### Terminal 1 — the patient app 📱
+### Before you start
+
+- **Node.js LTS** — [nodejs.org](https://nodejs.org)
+- **Expo Go** on your phone (App Store / Play Store)
+- Laptop + phone on the **same wifi**
+
+### Step 1 — open the project
 
 ```bash
-cd pulihgo-app        # NOT the repo root — the root has no package.json
+git clone https://github.com/radityawsgtg/GARUDA7.0.git
+cd GARUDA7.0
+```
+
+Already cloned? `cd` to it and `git pull` — then **`npm install` in whichever
+app you're about to run** (see the warning below; this is the #1 time-waster).
+
+You should see two app folders side by side:
+
+```
+GARUDA7.0/
+├── pulihgo-app/          ← the phone app  (Terminal 1)
+└── therapist-dashboard/  ← the web dashboard (Terminal 2)
+```
+
+### Step 2 — Terminal 1: the patient app 📱
+
+```bash
+cd pulihgo-app        # from the repo root. NOT the root itself — it has no package.json
 npm install           # .npmrc already sets legacy-peer-deps
-npx expo start        # scan the QR with Expo Go on your phone
+npx expo start        # a QR code appears — leave this running
 ```
 
-### Terminal 2 — the therapist dashboard 💻
+Scan the QR with **Expo Go** (iPhone: use the Camera app; Android: scan from
+inside Expo Go). The app hot-reloads — save a file, the phone updates in ~1s.
+
+Keys while it runs: **`r`** reload · **`j`** debugger console · **`c`** show the
+QR again · **`i`** iOS simulator (**no real gyroscope there** — you need a
+physical phone for anything sensor-related).
+
+### Step 3 — Terminal 2: the therapist dashboard 💻
+
+Open a **second** terminal — leave Expo running in the first one.
 
 ```bash
-cd therapist-dashboard
+cd therapist-dashboard   # from the repo root
 npm install
-npm run dev           # → http://localhost:5173
+npm run dev              # → open http://localhost:5173 in your browser
 ```
+
+### Step 4 — see the loop work
+
+1. Dashboard → **Therapy** tab → set a **Target ROM** → **Update Prescription**
+2. Phone → restart Expo Go → the exercise list shows **that** target (the plan is read on launch)
+3. Phone → **Calibrate & Start** → do a few reps → **Finish** → answer the pain check
+4. Dashboard → **Reports** tab → **Refresh** → your session appears
+
+Refresh is **manual** on purpose — there's no realtime subscription.
+
+> ⚠️ **Known bug:** only **Target ROM** currently reaches the phone. The
+> therapist's **ROM Ceiling** is dropped — `ExerciseListScreen` overrides
+> `targetRomDeg` from the prescription but not `romCeilingDeg`, so the phone
+> keeps the static `90°` from `src/exercises/exerciseLibrary.ts`. Set the ceiling
+> to 60 on the dashboard and the phone still warns at 90. Since that's the
+> *safety* value, don't demo it as if it flows through.
 
 > ### ⛔ Read this before you lose an hour to it
 >
