@@ -153,7 +153,7 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
     // Default forearm rotation
     return [
       { n: '1', text: 'Strap the phone screen-up along your affected forearm.' },
-      { n: '2', text: 'Sit upright with your elbow bent at a comfortable 90┬░ angle.' },
+      { n: '2', text: 'Sit upright with your elbow bent at a comfortable 90 angle.' },
       { n: '3', text: 'Hold your forearm flat in a neutral starting position.' },
     ];
   };
@@ -162,9 +162,9 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
     return (
       <View style={[styles.permissionContainer, { backgroundColor: colors.bg }]}>
         <Ionicons name="warning-outline" size={48} color={colors.caution} style={{ marginBottom: 16 }} />
-        <Text style={[styles.warnText, { color: colors.title }]}>ΓÜá∩╕Å Motion Access Required</Text>
+        <Text style={[styles.warnText, { color: colors.title }]}>WARNING: Motion Access Required</Text>
         <Text style={[styles.warnSubText, { color: colors.body }]}>
-          Please enable Motion & Fitness access in Settings ΓåÆ Expo Go on your mobile device to capture gyroscope data.
+          Please enable Motion & Fitness access in Settings - Expo Go on your mobile device to capture gyroscope data.
         </Text>
         <Pressable onPress={onExit} style={[styles.btnStart, { backgroundColor: colors.accent, marginTop: 24, width: '100%' }]}>
           <Text style={styles.btnStartText}>Go Back</Text>
@@ -351,7 +351,7 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
             </Pressable>
             
             <Text style={[styles.onboardHint, { color: colors.body }]}>
-              Tapping starts session calibration. This sets your current position as 0┬░ (neutral).
+              Tapping starts session calibration. This sets your current position as 0 (neutral).
             </Text>
           </View>
           
