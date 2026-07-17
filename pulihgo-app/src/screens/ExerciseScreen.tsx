@@ -1,4 +1,4 @@
-﻿// src/screens/ExerciseScreen.tsx
+// src/screens/ExerciseScreen.tsx
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-native';
 import { useCalibratedAngle } from '../sensors/useCalibratedAngle';
@@ -262,10 +262,7 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
               </Svg>
               <View style={styles.gaugeValueWrapper}>
                 <Text style={[styles.angleText, { color: colors.title }, past && { color: colors.danger }]}>
-                  {value.toFixed(0)}┬░
-                </Text>
-                <Text style={[styles.angleLabel, { color: colors.body }]}>
-                  {config.id === 'elbow_flexion_extension' ? 'ELBOW ANGLE' : 'FOREARM ANGLE'}
+                  {value.toFixed(0)}
                 </Text>
               </View>
             </View>
