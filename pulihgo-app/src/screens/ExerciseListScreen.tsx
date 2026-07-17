@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { EXERCISES } from '../exercises/exerciseLibrary';
 import { usePrescription } from '../sync/usePrescription';
+import { supabase } from '../sync/supabaseClient';
 import type { ExerciseConfig } from '../types';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -24,6 +25,8 @@ export default function ExerciseListScreen({ onSelect, theme, toggleTheme }: Exe
     body: isDark ? '#8e9aa0' : '#5B5F58',
     accent: isDark ? '#00C2C2' : '#0E7C7B',
     accentSoft: isDark ? 'rgba(0, 194, 194, 0.12)' : '#E1F4F7',
+    danger: isDark ? '#ff5252' : '#D64545',
+    dangerSoft: isDark ? 'rgba(255,82,82,0.1)' : '#FBE6E4',
   };
 
   const getExerciseDescription = (id: string) => {
@@ -68,6 +71,15 @@ export default function ExerciseListScreen({ onSelect, theme, toggleTheme }: Exe
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.accent }]}>CHOOSE EXERCISE</Text>
+
+      {supabase === null && (
+        <View style={[styles.dbOfflineBanner, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
+          <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
+          <Text style={[styles.dbOfflineText, { color: colors.danger }]}>
+            Supabase Offline: Restart Metro with -c flag (npx expo start -c) to clear the environment cache.
+          </Text>
+        </View>
+      )}
 
       {/* Exercise Options */}
       <View style={styles.list}>
@@ -224,5 +236,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
+  },
+  dbOfflineBanner: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  dbOfflineText: {
+    fontSize: 13,
+    fontWeight: '800',
+    flex: 1,
   },
 });
