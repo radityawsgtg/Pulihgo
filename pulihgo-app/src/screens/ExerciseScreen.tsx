@@ -119,19 +119,19 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
   // Determine feedback messaging
   let gaugeColor = colors.accent;
   let feedbackMessage = 'Move slowly and with control.';
-  let feedbackSub = `Aim for your target ROM of ${config.targetRomDeg}┬░`;
+  let feedbackSub = `Aim for your target ROM of ${config.targetRomDeg}`;
 
   if (past) {
     gaugeColor = colors.danger;
-    feedbackMessage = 'ΓÜá∩╕Å SLOW DOWN & RETURN';
-    feedbackSub = `Exceeded safe range limit of ┬▒${config.romCeilingDeg}┬░`;
+    feedbackMessage = 'WARNING: SLOW DOWN & RETURN';
+    feedbackSub = `Exceeded safe range limit of ${config.romCeilingDeg}`;
   } else if (absAngle >= config.targetRomDeg) {
     gaugeColor = colors.safe;
     feedbackMessage = 'TARGET HIT!';
     feedbackSub = 'Now rotate slowly back to the starting point.';
   } else if (absAngle > 10) {
     feedbackMessage = 'Good movement, keep going...';
-    feedbackSub = `Push toward the ${config.targetRomDeg}┬░ target ring`;
+    feedbackSub = `Push toward the ${config.targetRomDeg} target ring`;
   }
 
   // SVG math for angle visual gauge

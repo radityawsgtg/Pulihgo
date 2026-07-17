@@ -94,7 +94,7 @@ export default function ExerciseListScreen({ onSelect, theme, toggleTheme }: Exe
                 <View style={styles.targetRow}>
                   <Ionicons name="checkmark-circle-outline" size={14} color="#1E9E5A" />
                   <Text style={[styles.targetText, { color: colors.body }]}>
-                    Target ROM: {targetRom}°
+                    Target ROM: {targetRom}
                   </Text>
                 </View>
               </View>
