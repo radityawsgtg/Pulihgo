@@ -22,12 +22,57 @@ underused sensor for the job.
 
 ## Run it (5 min)
 
-Full setup + the errors we hit are in [`docs/07-getting-started.md`](./docs/07-getting-started.md). Short version:
+There are **two apps**, and they need **two terminals**. They never talk to each
+other directly — both talk to Supabase.
+
+Full setup + the errors we hit are in [`docs/07-getting-started.md`](./docs/07-getting-started.md).
+
+### Terminal 1 — the patient app 📱
 
 ```bash
-npm install            # .npmrc already sets legacy-peer-deps
-npx expo start         # scan the QR with Expo Go on your phone
+cd pulihgo-app        # NOT the repo root — the root has no package.json
+npm install           # .npmrc already sets legacy-peer-deps
+npx expo start        # scan the QR with Expo Go on your phone
 ```
+
+### Terminal 2 — the therapist dashboard 💻
+
+```bash
+cd therapist-dashboard
+npm install
+npm run dev           # → http://localhost:5173
+```
+
+> ### ⛔ Read this before you lose an hour to it
+>
+> **After every `git pull`, run `npm install` in the folder you're working in.**
+> Whenever a teammate adds a dependency, your `node_modules` is out of date and
+> the error you get says nothing about installing. Both of these have already
+> bitten us:
+>
+> - `Unable to resolve module expo-av` → someone added the audio player
+> - `Cannot find module '@supabase/supabase-js'` → someone added sync
+>
+> The fix is always `npm install`, never a code change.
+
+### Environment variables (both apps need their own)
+
+Sync is off until you fill these in. **The app still runs without them** — it
+just stays local-only, warning once in the console.
+
+| File | Variables | Copy from |
+|------|-----------|-----------|
+| `pulihgo-app/.env` | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | `pulihgo-app/.env.example` |
+| `therapist-dashboard/.env` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | `therapist-dashboard/.env.example` |
+
+**Same Supabase project, same URL, same anon key — different variable names.**
+Expo only inlines vars prefixed `EXPO_PUBLIC_`; Vite only inlines `VITE_`. Put
+the dashboard's `VITE_*` names in the phone's `.env` and **every phone sync dies
+silently** — no error, sessions simply never upload. That has happened once
+already. Restart the dev server after editing `.env`; neither tool hot-reloads it.
+
+Never commit a `.env` — both are gitignored. The anon key is public by design
+(it ships in the app bundle); the `service_role` key must never go in either file.
 
 > **This project targets Expo SDK 54.** Install the **Expo Go** app from the
 > App Store / Play Store — as of writing, the App Store build of Expo Go only
@@ -37,9 +82,13 @@ npx expo start         # scan the QR with Expo Go on your phone
 > [`docs/07-getting-started.md`](./docs/07-getting-started.md) if you hit
 > "Project is incompatible with this version of Expo Go".
 
-You'll land on the **Exercise** tab (the MVP loop). The **Gyro test** tab shows
-raw axes — use it to confirm which axis your forearm rotation drives, then set
-`EXERCISE_AXIS` in `src/screens/ExerciseScreen.tsx`.
+Your laptop and phone must be on the **same wifi** — Expo Go loads the JS bundle
+from Metro over the local network. Conference wifi often blocks device-to-device
+traffic; tethering the laptop to your phone's hotspot fixes it.
+
+You'll land on the **Home** tab. The **Gyro test** tab shows raw axes — it's how
+`EXERCISE_AXIS` was confirmed as `roll` (see `src/exercises/exerciseLibrary.ts`),
+and how you'd re-check it if the strap position or phone model changes.
 
 ## What to read, in order
 
