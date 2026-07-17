@@ -38,11 +38,6 @@ const IconUser       = (p: { size?: number; color?: string; style?: React.CSSPro
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
   </svg>
 );
-const IconDownload   = (p: { size?: number; color?: string; style?: React.CSSProperties }) => (
-  <svg style={p.style} width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-);
 const IconCheck      = (p: { size?: number; color?: string; style?: React.CSSProperties }) => (
   <svg style={p.style} width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
@@ -106,15 +101,6 @@ const SCHEDULE_MOCK_TIMES = [
   Date.now() - 2 * 86400000,
 ];
 
-/* ─── Journal entries ─── */
-const JOURNAL = [
-  { date: '17 Jul 2026', mood: 'Good',   note: 'Completed full forearm rotation set without pain. Feeling optimistic about recovery.' },
-  { date: '16 Jul 2026', mood: 'Fair',    note: 'Mild discomfort during supination at high angles. Stopped after 8 reps.' },
-  { date: '15 Jul 2026', mood: 'Great',   note: 'Best session so far! ROM reached 88° with no discomfort.' },
-  { date: '14 Jul 2026', mood: 'Poor',    note: 'Had to stop early due to sharp pain above 90°. Will reduce ceiling.' },
-  { date: '13 Jul 2026', mood: 'Good',    note: 'Steady improvement. Smoothness score improving consistently.' },
-];
-
 /* ─── Therapy exercises ─── */
 const EXERCISES = [
   { name: 'Forearm Supination/Pronation', sets: 3, reps: 12, target: '80°', status: 'Active' },
@@ -135,8 +121,8 @@ const clock = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes
 const todayStr = now.toLocaleDateString('en-US',{ weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
 /* ─── Tabs ─── */
-type Tab = 'Dashboard' | 'My Journal' | 'Therapy' | 'Reports' | 'Settings';
-const TABS: Tab[] = ['Dashboard','My Journal','Therapy','Reports','Settings'];
+type Tab = 'Dashboard' | 'Therapy' | 'Reports' | 'Settings';
+const TABS: Tab[] = ['Dashboard','Therapy','Reports','Settings'];
 
 /* ════════════════════════════════════════════════════════════════════════════ */
 export default function App() {
@@ -303,7 +289,7 @@ export default function App() {
             <div className="kpi-row">
               <KpiCard label="Weekly Adherence" value={`${adherence}%`} change={`${weeklyReport.filter(d=>d.reps>0).length}/7 hari aktif`} changeColor="#00e676" data={sparkAdherence} gradientId="gA" color="#00e676"/>
               <KpiCard label="Avg Peak ROM" value={`${avgRom.toFixed(0)}°`} change={`dari ${sessions.length} sesi`} changeColor="#00e5ff" data={sparkAvgRom} gradientId="gB" color="#00e5ff"/>
-              <KpiCard label="Total Dose" value={`${totalReps} reps`} change={`${sessions.length} sesi tercatat`} changeColor="#c084fc" data={sparkTotalDose} gradientId="gC" color="#ff5252"/>
+              <KpiCard label="Total Dose" value={`${totalReps} reps`} change={`${sessions.length} sesi tercatat`} changeColor="#00e5ff" data={sparkTotalDose} gradientId="gC" color="#ff5252"/>
             </div>
           )}
 
@@ -331,50 +317,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right: media cards */}
-        <div className="col-right">
-          <div className="glass-card media-card purple-glow">
-            <div className="vinyl-circle"></div>
-            <h3>Inner Harmony Hues</h3>
-            <p className="media-sub">Take a mental voyage to inner sanctuaries</p>
-            <div className="media-controls">
-              <button className="ctrl-btn small">⏮</button>
-              <button className="ctrl-btn play">▶</button>
-              <button className="ctrl-btn small">⏭</button>
-            </div>
-          </div>
-          <div className="glass-card download-card">
-            <h3>Download your rehabilitation wellness report</h3>
-            <p className="dl-sub">Full ROM trend analysis and session history</p>
-            <button className="dl-btn"><IconDownload size={13} color="#fff" style={{marginRight:6}}/>Download</button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
-  const renderJournal = () => (
-    <>
-      <div className="sub-header">
-        <div className="breadcrumb"><span className="bc-dim">My Journal</span> <span className="bc-sep">/</span> <span className="bc-active">Entries</span></div>
-        <div className="date-display"><IconCalendar size={13} color="rgba(255,255,255,0.5)" style={{marginRight:6}}/>{todayStr}</div>
-      </div>
-      <h1 className="page-title"><span className="fw-900">My</span> Journal</h1>
-
-      <div className="journal-grid">
-        {JOURNAL.map((j, i) => (
-          <div key={i} className="glass-card journal-entry">
-            <div className="je-header">
-              <span className="je-date">{j.date}</span>
-              <span className={`je-mood mood-${j.mood.toLowerCase()}`}>{j.mood}</span>
-            </div>
-            <p className="je-note">{j.note}</p>
-          </div>
-        ))}
-        <div className="glass-card journal-new">
-          <button className="new-entry-btn">+ New Entry</button>
-          <p className="new-entry-hint">Record today's session experience</p>
-        </div>
       </div>
     </>
   );
@@ -390,7 +332,7 @@ export default function App() {
       <div className="therapy-layout">
         <div className="therapy-left">
           <div className="glass-card">
-            <h2 className="card-h2"><IconHeart size={16} color="#c084fc" style={{marginRight:8}}/>Prescribed Exercises</h2>
+            <h2 className="card-h2"><IconHeart size={16} color="#00e5ff" style={{marginRight:8}}/>Prescribed Exercises</h2>
             <table className="sched-table">
               <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Target</th><th>Status</th></tr></thead>
               <tbody>
@@ -411,7 +353,7 @@ export default function App() {
         <div className="therapy-right">
           {/* Prescription form */}
           <div className="glass-card">
-            <h2 className="card-h2"><IconSliders size={16} color="#c084fc" style={{marginRight:8}}/>Clinical Prescription</h2>
+            <h2 className="card-h2"><IconSliders size={16} color="#00e5ff" style={{marginRight:8}}/>Clinical Prescription</h2>
             <form onSubmit={onSave} className="rx-form">
               <div className="fg"><label>Exercise</label>
                 <select value={exercise} onChange={e => setExercise(e.target.value)}>
@@ -463,8 +405,16 @@ export default function App() {
                 <LineChart data={sessions.map(s=>({...s, lbl: new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}))} margin={{top:15,right:10,left:-20,bottom:0}}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
                   <XAxis dataKey="lbl" stroke="#a0aec0" fontSize={10}/>
-                  <YAxis stroke="#a0aec0" fontSize={10} domain={[0,120]}/>
-                  <Tooltip contentStyle={{backgroundColor:'rgba(20,14,30,0.95)',borderColor:'rgba(255,255,255,0.08)',borderRadius:8}} labelStyle={{color:'#a0aec0'}} itemStyle={{color:'#fff'}}/>
+                  {/* domain is only a hint — recharts widens it to fit outliers
+                      (a 173° session exists), so round the ticks or the axis
+                      prints the raw float, e.g. "173.47602807826297". */}
+                  <YAxis stroke="#a0aec0" fontSize={10} domain={[0,120]} tickFormatter={(v: number) => `${Math.round(v)}`}/>
+                  <Tooltip
+                    contentStyle={{backgroundColor:'var(--card)',borderColor:'var(--border)',borderRadius:8}}
+                    labelStyle={{color:'var(--body)'}}
+                    itemStyle={{color:'#fff'}}
+                    formatter={(v) => (typeof v === 'number' ? `${Math.round(v)}°` : v)}
+                  />
                   <ReferenceLine y={saved.targetRom} stroke="#00e676" strokeDasharray="4 4" label={{value:`Target ${saved.targetRom}°`,fill:'#00e676',position:'top',fontSize:10}}/>
                   <ReferenceLine y={saved.romCeiling} stroke="#ff5252" strokeDasharray="4 4" label={{value:`Ceiling ${saved.romCeiling}°`,fill:'#ff5252',position:'top',fontSize:10}}/>
                   <Line type="monotone" dataKey="peak_rom" name="Peak ROM" stroke="#00e5ff" strokeWidth={3} dot={{r:4,strokeWidth:2}} activeDot={{r:6}}/>
@@ -482,8 +432,8 @@ export default function App() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
                   <XAxis dataKey="day" stroke="#a0aec0" fontSize={10}/>
                   <YAxis stroke="#a0aec0" fontSize={10}/>
-                  <Tooltip contentStyle={{backgroundColor:'rgba(20,14,30,0.95)',borderColor:'rgba(255,255,255,0.08)',borderRadius:8}} labelStyle={{color:'#a0aec0'}} itemStyle={{color:'#fff'}}/>
-                  <Bar dataKey="reps" fill="#c084fc" radius={[4,4,0,0]}/>
+                  <Tooltip contentStyle={{backgroundColor:'var(--card)',borderColor:'var(--border)',borderRadius:8}} labelStyle={{color:'var(--body)'}} itemStyle={{color:'#fff'}}/>
+                  <Bar dataKey="reps" fill="#00e5ff" radius={[4,4,0,0]}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -504,7 +454,10 @@ export default function App() {
                       <td className="dt-cell"><IconCalendar size={12} color="#a0aec0" style={{marginRight:6}}/>{fmtDate(s.created_at)}</td>
                       <td>Forearm supination/pronation</td>
                       <td className="center fw-700">{s.reps}</td>
-                      <td className={`fw-700 ${over?'color-danger':'color-cyan'}`}>{s.peak_rom}°</td>
+                      {/* Round like the app does — the phone reports a raw
+                          float (e.g. 65.82973199398361), and degrees below 1°
+                          are noise, not information a therapist can act on. */}
+                      <td className={`fw-700 ${over?'color-danger':'color-cyan'}`}>{s.peak_rom.toFixed(0)}°</td>
                       <td className="dt-cell"><IconClock size={12} color="#a0aec0" style={{marginRight:6}}/>{fmtDur(s.duration_ms)}</td>
                       <td>
                         {s.pain_flag==='stopped'&&<span className="badge badge-danger">Stopped</span>}
@@ -533,13 +486,13 @@ export default function App() {
 
       <div className="settings-grid">
         <div className="glass-card settings-card">
-          <h2 className="card-h2"><IconUser size={16} color="#c084fc" style={{marginRight:8}}/>Patient Profile</h2>
+          <h2 className="card-h2"><IconUser size={16} color="#00e5ff" style={{marginRight:8}}/>Patient Profile</h2>
           <div className="fg"><label>Patient Name</label><input type="text" value={patientName} onChange={e=>setPatientName(e.target.value)}/></div>
           <div className="fg"><label>Diagnosis</label><input type="text" value="Post-fracture forearm rehabilitation" readOnly/></div>
           <div className="fg"><label>Therapist</label><input type="text" value="Carl Manfred" readOnly/></div>
         </div>
         <div className="glass-card settings-card">
-          <h2 className="card-h2"><IconSliders size={16} color="#c084fc" style={{marginRight:8}}/>Preferences</h2>
+          <h2 className="card-h2"><IconSliders size={16} color="#00e5ff" style={{marginRight:8}}/>Preferences</h2>
           <div className="toggle-row">
             <span>Dark Mode</span>
             <button className={`toggle-btn ${darkMode?'on':''}`} onClick={()=>setDarkMode(!darkMode)}><span className="toggle-knob"/></button>
@@ -560,7 +513,6 @@ export default function App() {
 
   const tabContent: Record<Tab, () => React.ReactNode> = {
     Dashboard: renderDashboard,
-    'My Journal': renderJournal,
     Therapy: renderTherapy,
     Reports: renderReports,
     Settings: renderSettings,
@@ -577,7 +529,7 @@ export default function App() {
       <div className="glass-window">
         {/* Top nav bar inside the glass */}
         <header className="top-bar">
-          <div className="brand"><IconActivity size={18} color="#c084fc"/><span className="brand-txt">Pulih<span className="brand-accent">Go</span></span></div>
+          <div className="brand"><IconActivity size={18} color="#00e5ff"/><span className="brand-txt">Pulih<span className="brand-accent">Go</span></span></div>
           <nav className="pill-nav">
             {TABS.map(t => (
               <button key={t} className={`pill ${tab===t?'active':''}`} onClick={()=>setTab(t)}>{t}</button>
@@ -590,7 +542,7 @@ export default function App() {
               <span className="p-name">Carl Manfred</span>
               <span className="p-role">Physiotherapist</span>
             </div>
-            <div className="p-avatar"><IconUser size={15} color="#c084fc"/></div>
+            <div className="p-avatar"><IconUser size={15} color="#00e5ff"/></div>
           </div>
         </header>
 
@@ -606,7 +558,7 @@ export default function App() {
         <footer className="glass-footer">
           <p>
             Reports, Dashboard KPI &amp; Clinical Prescription: <strong>data pasien asli</strong> (Supabase).
-            {' '}My Journal, Session Schedule &amp; Prescribed Exercises: data ilustrasi.
+            {' '}Session Schedule &amp; Prescribed Exercises: data ilustrasi.
           </p>
         </footer>
       </div>
