@@ -10,8 +10,9 @@ import { View, Text, Pressable, StyleSheet, Platform, ScrollView } from 'react-n
 import { useCalibratedAngle } from '../sensors/useCalibratedAngle';
 import { RepDetector } from '../metrics/repDetector';
 import { smoothness } from '../metrics/smoothness';
-import { DEFAULT_ROM_CEILING_DEG, isPastCeiling, PAIN_OPTIONS } from '../safety/safety';
+import { isPastCeiling, PAIN_OPTIONS } from '../safety/safety';
 import { sessionStore } from '../storage/sessionStore';
+import { usePrescription } from '../sync/usePrescription';
 import type { Axis, PainLevel, RepMetric, SessionSummary } from '../types';
 import Svg, { Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +28,16 @@ const PAIN_LABEL: Record<PainLevel, string> = {
   unknown: 'Not asked',
 };
 
-const DUMMY_TARGET_ROM_DEG = 70;
+// Target/ceiling now come from usePrescription(): the therapist's plan from
+// Supabase when reachable, the last cached plan when offline, and the
+// FALLBACK_* constants in src/sync/fetchPrescription.ts when neither exists.
+// (The old DUMMY_TARGET_ROM_DEG = 70 lives on there as the fallback.)
+
+const PLAN_SOURCE_LABEL = {
+  server: 'Therapist plan · synced',
+  cache: 'Therapist plan · offline copy',
+  default: 'Default plan — no therapist target set yet',
+} as const;
 
 interface ExerciseScreenProps {
   theme: 'dark' | 'light';
@@ -36,19 +46,32 @@ interface ExerciseScreenProps {
 
 export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenProps) {
   const { angles, granted, calibrate } = useCalibratedAngle(SAMPLE_MS);
+  const { rx, status: rxStatus } = usePrescription();
   const [reps, setReps] = useState(0);
   const [peak, setPeak] = useState(0);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [asking, setAsking] = useState(false);
   const [justSaved, setJustSaved] = useState<PainLevel | null>(null);
-  const detector = useRef(new RepDetector({ targetRomDeg: DUMMY_TARGET_ROM_DEG }));
+  // Created in start(), not at mount: the prescription resolves async, and a
+  // detector built at mount would keep the fallback thresholds even after the
+  // therapist's real target arrived.
+  const detector = useRef<RepDetector | null>(null);
   const repsRef = useRef<RepMetric[]>([]);
 
   const value = angles[EXERCISE_AXIS];
   const running = startedAt !== null;
 
+  // Feed samples to the detector only while a session is running.
   useEffect(() => {
-    detector.current.onRep = (rep) => {
+    if (running) detector.current?.push(value, Date.now());
+  }, [value, running]);
+
+  const start = () => {
+    calibrate();
+    // Fresh detector per session, derived from whatever plan is current —
+    // therapist's target when synced, cache/fallback otherwise.
+    const det = new RepDetector({ targetRomDeg: rx.targetRomDeg });
+    det.onRep = (rep) => {
       repsRef.current.push({
         index: rep.index,
         peakRomDeg: rep.peakRomDeg,
@@ -58,16 +81,7 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
       setReps(rep.index);
       setPeak((p) => Math.max(p, rep.peakRomDeg));
     };
-  }, []);
-
-  // Feed samples to the detector only while a session is running.
-  useEffect(() => {
-    if (running) detector.current.push(value, Date.now());
-  }, [value, running]);
-
-  const start = () => {
-    calibrate();
-    detector.current.reset();
+    detector.current = det;
     repsRef.current = [];
     setReps(0);
     setPeak(0);
@@ -107,26 +121,26 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
     highlight: isDark ? '#cfe6ea' : '#334155',
   };
 
-  const past = isPastCeiling(value);
+  const past = isPastCeiling(value, rx.romCeilingDeg);
   const absAngle = Math.abs(value);
-  const romPercent = Math.min(100, Math.round((absAngle / DUMMY_TARGET_ROM_DEG) * 100));
+  const romPercent = Math.min(100, Math.round((absAngle / rx.targetRomDeg) * 100));
 
   // Determine colors and messages dynamically based on safety and metrics
   let gaugeColor = "#00e5ff"; // default cyan
   let feedbackMessage = "Rotate your forearm slowly and with control.";
-  let feedbackSub = `Aim for your target ROM of ${DUMMY_TARGET_ROM_DEG}°`;
+  let feedbackSub = `Aim for your target ROM of ${rx.targetRomDeg}°`;
 
   if (past) {
     gaugeColor = "#ff5252"; // Warning Red
     feedbackMessage = "⚠️ SLOW DOWN & RETURN";
-    feedbackSub = "Exceeded safe range limit of ±90°";
-  } else if (absAngle >= DUMMY_TARGET_ROM_DEG) {
+    feedbackSub = `Exceeded safe range limit of ±${rx.romCeilingDeg}°`;
+  } else if (absAngle >= rx.targetRomDeg) {
     gaugeColor = "#00e676"; // Success Green
     feedbackMessage = "TARGET HIT!";
     feedbackSub = "Now rotate slowly back to the starting point.";
   } else if (absAngle > 10) {
     feedbackMessage = "Good rotation, keep going...";
-    feedbackSub = `Push toward the ${DUMMY_TARGET_ROM_DEG}° target ring`;
+    feedbackSub = `Push toward the ${rx.targetRomDeg}° target ring`;
   }
 
   // SVG math
@@ -240,7 +254,10 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
               <Text style={[styles.statLabel, { color: colors.body }]}>REPETITIONS</Text>
-              <Text style={[styles.statValue, { color: colors.title }]}>{reps}</Text>
+              <Text style={[styles.statValue, { color: colors.title }]}>
+                {reps}
+                <Text style={[styles.statTarget, { color: colors.body }]}> / {rx.targetReps}</Text>
+              </Text>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
               <Text style={[styles.statLabel, { color: colors.body }]}>PEAK ANGLE</Text>
@@ -294,11 +311,26 @@ export default function ExerciseScreen({ theme, toggleTheme }: ExerciseScreenPro
               <Text style={[styles.stepText, { color: colors.title }]}>Hold your forearm flat in a neutral starting position.</Text>
             </View>
 
-            <Pressable style={styles.btnStart} onPress={start}>
+            <Pressable
+              style={[styles.btnStart, rxStatus === 'loading' && styles.btnStartLoading]}
+              onPress={start}
+              disabled={rxStatus === 'loading'}
+            >
               <Ionicons name="options" size={20} color="#0b0e11" style={{ marginRight: 8 }} />
-              <Text style={styles.btnStartText}>Calibrate & Start</Text>
+              <Text style={styles.btnStartText}>
+                {rxStatus === 'loading' ? 'Loading your plan…' : 'Calibrate & Start'}
+              </Text>
             </Pressable>
-            
+
+            {/* Which plan this session will run against, and where it came
+                from — this line is how the demo proves the therapist loop. */}
+            <Text style={[styles.planLine, { color: colors.highlight }]}>
+              Target {rx.targetRomDeg}° · Safe limit {rx.romCeilingDeg}° · {rx.targetReps} reps
+            </Text>
+            <Text style={[styles.planSource, { color: colors.body }]}>
+              {rxStatus === 'loading' ? 'Checking for your therapist’s plan…' : PLAN_SOURCE_LABEL[rx.source]}
+            </Text>
+
             <Text style={[styles.onboardHint, { color: colors.body }]}>
               Tapping starts session calibration. This sets your current position as 0° (neutral).
             </Text>
@@ -522,7 +554,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   btnStartText: { color: '#0b0e11', fontWeight: '800', fontSize: 15.5 },
+  btnStartLoading: { opacity: 0.55 },
+  planLine: { fontSize: 12.5, fontWeight: '700', textAlign: 'center', marginBottom: 2 },
+  planSource: { fontSize: 10.5, textAlign: 'center', marginBottom: 10 },
   onboardHint: { fontSize: 10.5, lineHeight: 16, textAlign: 'center' },
+  statTarget: { fontSize: 16, fontWeight: '700' },
 
   savedBanner: {
     flexDirection: 'row',
