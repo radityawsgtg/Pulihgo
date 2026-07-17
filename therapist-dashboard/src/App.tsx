@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, AreaChart, Area, BarChart, Bar
 } from 'recharts';
 import './App.css';
+import { fetchSessions, type DbSession } from './lib/supabase';
 
 /* ─── Database types ─── */
 interface SessionData {
@@ -52,7 +53,6 @@ const IconShield     = (p: { size?: number; color?: string; style?: React.CSSPro
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
   </svg>
 );
-const IconBook       = (p: { size?: number; color?: string; style?: React.CSSProperties }) => <I d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" {...p} />;
 const IconHeart      = (p: { size?: number; color?: string; style?: React.CSSProperties }) => <I d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" {...p} />;
 const IconSliders    = (p: { size?: number; color?: string; style?: React.CSSProperties }) => (
   <svg style={p.style} width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -69,20 +69,42 @@ const IconDots = (p: { size?: number; color?: string; style?: React.CSSPropertie
     <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
   </svg>
 );
+const IconRefresh = (p: { size?: number; color?: string; style?: React.CSSProperties }) => (
+  <svg style={p.style} width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+  </svg>
+);
 
-/* ─── Dummy data ─── */
-const SESSIONS: SessionData[] = [
-  { reps: 6,  peak_rom: 55, duration_ms: 45000, pain_flag: 'none',    created_at: Date.now() - 6*86400000 },
-  { reps: 8,  peak_rom: 62, duration_ms: 55000, pain_flag: 'mild',    created_at: Date.now() - 5*86400000 },
-  { reps: 10, peak_rom: 70, duration_ms: 72000, pain_flag: 'none',    created_at: Date.now() - 4*86400000 },
-  { reps: 10, peak_rom: 88, duration_ms: 68000, pain_flag: 'none',    created_at: Date.now() - 3*86400000 },
-  { reps: 5,  peak_rom: 96, duration_ms: 32000, pain_flag: 'stopped', created_at: Date.now() - 2*86400000 },
-  { reps: 12, peak_rom: 82, duration_ms: 88000, pain_flag: 'none',    created_at: Date.now() - 1*86400000 },
-  { reps: 12, peak_rom: 85, duration_ms: 85000, pain_flag: 'none',    created_at: Date.now() - 4*3600000  },
+/* ─── Real patient session data ─── */
+// TODO(auth): comes from the logged-in therapist's selected patient once
+// therapist/patient accounts exist. Every fetch is scoped to this one id
+// until then — matches DUMMY_PATIENT_ID in pulihgo-app/src/sync/uploadSession.ts.
+const PATIENT_ID = 'demo01';
+
+/** Map one Supabase `sessions` row onto the shape the charts/tables below expect. */
+function toSessionData(row: DbSession): SessionData {
+  return {
+    reps: row.reps,
+    peak_rom: row.peak_rom,
+    duration_ms: row.duration_ms,
+    pain_flag: row.pain_flag,
+    created_at: new Date(row.created_at).getTime(),
+  };
+}
+
+/* ─── Session Schedule mock data ───
+   Deliberately NOT derived from real sessions — the therapist/session-type
+   names here are illustrative UI only (per the task: Session Schedule stays
+   mock), decoupled from the real Supabase fetch below so it renders the same
+   regardless of loading/error/empty state. */
+const SCHEDULE_MOCK_TIMES = [
+  Date.now() - 6 * 86400000,
+  Date.now() - 5 * 86400000,
+  Date.now() - 4 * 86400000,
+  Date.now() - 3 * 86400000,
+  Date.now() - 2 * 86400000,
 ];
-const SPARK_A = [{ v: 30 },{ v: 45 },{ v: 50 },{ v: 65 },{ v: 75 },{ v: 85 }];
-const SPARK_B = [{ v: 55 },{ v: 62 },{ v: 70 },{ v: 88 },{ v: 96 },{ v: 85 }];
-const SPARK_C = [{ v: 6 },{ v: 8 },{ v: 10 },{ v: 10 },{ v: 5 },{ v: 12 }];
 
 /* ─── Journal entries ─── */
 const JOURNAL = [
@@ -99,17 +121,6 @@ const EXERCISES = [
   { name: 'Wrist Flexion/Extension',      sets: 2, reps: 10, target: '60°', status: 'Upcoming' },
   { name: 'Grip Strength Training',        sets: 3, reps: 15, target: 'N/A', status: 'Upcoming' },
   { name: 'Finger Dexterity Drill',        sets: 2, reps: 20, target: 'N/A', status: 'Completed' },
-];
-
-/* ─── Weekly report data ─── */
-const WEEKLY_REPORT = [
-  { day: 'Mon', reps: 12, rom: 70 },
-  { day: 'Tue', reps: 10, rom: 62 },
-  { day: 'Wed', reps: 0,  rom: 0  },
-  { day: 'Thu', reps: 10, rom: 88 },
-  { day: 'Fri', reps: 5,  rom: 96 },
-  { day: 'Sat', reps: 12, rom: 82 },
-  { day: 'Sun', reps: 12, rom: 85 },
 ];
 
 /* ─── Helper fns ─── */
@@ -130,6 +141,29 @@ const TABS: Tab[] = ['Dashboard','My Journal','Therapy','Reports','Settings'];
 /* ════════════════════════════════════════════════════════════════════════════ */
 export default function App() {
   const [tab, setTab] = useState<Tab>('Dashboard');
+
+  // Real session data (Reports + Dashboard KPIs) — fetched from Supabase.
+  // Journal / Therapy prescriptions / Settings / Session Schedule stay mock.
+  const [sessions, setSessions] = useState<SessionData[]>([]);
+  const [sessionsStatus, setSessionsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+
+  const loadSessions = useCallback(async () => {
+    setSessionsStatus('loading');
+    setSessionsError(null);
+    try {
+      const rows = await fetchSessions(PATIENT_ID);
+      setSessions(rows.map(toSessionData));
+      setSessionsStatus('ready');
+    } catch (e) {
+      setSessionsError(e instanceof Error ? e.message : String(e));
+      setSessionsStatus('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   // Prescription
   const [targetRom, setTargetRom]   = useState(80);
@@ -155,9 +189,38 @@ export default function App() {
     setTimeout(() => setToast(false), 3000);
   };
 
-  const totalReps  = SESSIONS.reduce((a,s) => a+s.reps, 0);
-  const avgRom     = SESSIONS.reduce((a,s) => a+s.peak_rom, 0) / SESSIONS.length;
-  const adherence  = Math.min(100, Math.round((SESSIONS.length/7)*100));
+  // Derived stats — all computed from `sessions` (real Supabase data), never
+  // from SESSIONS (that constant no longer exists). Only meaningful once
+  // sessionsStatus === 'ready' && sessions.length > 0; the render functions
+  // below gate on that before showing these.
+  const totalReps = sessions.reduce((a, s) => a + s.reps, 0);
+  const avgRom    = sessions.length ? sessions.reduce((a, s) => a + s.peak_rom, 0) / sessions.length : 0;
+
+  // Trailing 7 calendar days (today inclusive), oldest to newest — used for
+  // both the Weekly Adherence KPI and the Weekly Reps Distribution bar chart.
+  const weeklyReport = useMemo(() => {
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days: { key: string; day: string; reps: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push({ key: d.toDateString(), day: dayLabels[d.getDay()], reps: 0 });
+    }
+    for (const s of sessions) {
+      const key = new Date(s.created_at).toDateString();
+      const bucket = days.find((d) => d.key === key);
+      if (bucket) bucket.reps += s.reps;
+    }
+    return days;
+  }, [sessions]);
+
+  const adherence = Math.round((weeklyReport.filter((d) => d.reps > 0).length / 7) * 100);
+
+  // KPI sparklines, derived from the real session history (last 6 sessions).
+  const recentSessions = sessions.slice(-6);
+  const sparkAdherence = weeklyReport.map((d) => ({ v: d.reps }));
+  const sparkAvgRom = recentSessions.map((s) => ({ v: s.peak_rom }));
+  const sparkTotalDose = recentSessions.map((s) => ({ v: s.reps }));
 
   /* ─── Tab Content Renderers ─── */
 
@@ -165,18 +228,29 @@ export default function App() {
     <>
       <div className="sub-header">
         <div className="breadcrumb"><span className="bc-dim">Dashboard</span> <span className="bc-sep">/</span> <span className="bc-active">General</span></div>
-        <div className="date-display"><IconCalendar size={13} color="rgba(255,255,255,0.5)" style={{marginRight:6}}/>{todayStr}</div>
+        <div className="header-actions">
+          <button className="btn-refresh" onClick={loadSessions} disabled={sessionsStatus === 'loading'}>
+            <IconRefresh size={13} color="rgba(255,255,255,0.75)" style={sessionsStatus === 'loading' ? { animation: 'dash-spin 0.9s linear infinite' } : undefined}/>
+            Refresh
+          </button>
+          <div className="date-display"><IconCalendar size={13} color="rgba(255,255,255,0.5)" style={{marginRight:6}}/>{todayStr}</div>
+        </div>
       </div>
       <h1 className="page-title"><span className="fw-900">Overall</span> Statistics</h1>
 
       <div className="grid-main">
         {/* Left: KPIs + Session table */}
         <div className="col-left">
-          <div className="kpi-row">
-            <KpiCard label="Weekly Adherence" value={`${adherence}%`} change="+20% this month" changeColor="#00e676" data={SPARK_A} gradientId="gA" color="#00e676"/>
-            <KpiCard label="Avg Peak ROM" value={`${avgRom.toFixed(0)}°`} change="+8° this month" changeColor="#00e676" data={SPARK_B} gradientId="gB" color="#00e5ff"/>
-            <KpiCard label="Total Dose" value={`${totalReps} reps`} change="-2% this week" changeColor="#ff5252" data={SPARK_C} gradientId="gC" color="#ff5252"/>
-          </div>
+          {sessionsStatus === 'loading' && <DataState kind="loading"/>}
+          {sessionsStatus === 'error' && <DataState kind="error" message={sessionsError} onRetry={loadSessions}/>}
+          {sessionsStatus === 'ready' && sessions.length === 0 && <DataState kind="empty"/>}
+          {sessionsStatus === 'ready' && sessions.length > 0 && (
+            <div className="kpi-row">
+              <KpiCard label="Weekly Adherence" value={`${adherence}%`} change={`${weeklyReport.filter(d=>d.reps>0).length}/7 hari aktif`} changeColor="#00e676" data={sparkAdherence} gradientId="gA" color="#00e676"/>
+              <KpiCard label="Avg Peak ROM" value={`${avgRom.toFixed(0)}°`} change={`dari ${sessions.length} sesi`} changeColor="#00e5ff" data={sparkAvgRom} gradientId="gB" color="#00e5ff"/>
+              <KpiCard label="Total Dose" value={`${totalReps} reps`} change={`${sessions.length} sesi tercatat`} changeColor="#c084fc" data={sparkTotalDose} gradientId="gC" color="#ff5252"/>
+            </div>
+          )}
 
           <div className="glass-card session-card">
             <div className="card-top-bar">
@@ -189,11 +263,11 @@ export default function App() {
             <table className="sched-table">
               <thead><tr><th>Therapist</th><th>Time</th><th>Date</th><th>Session type</th></tr></thead>
               <tbody>
-                {SESSIONS.slice(0, 5).map((s, i) => (
+                {SCHEDULE_MOCK_TIMES.map((created_at, i) => (
                   <tr key={i}>
                     <td className="therapist-cell"><div className="avatar-dot"></div>Dr. {['Emily Johnson','Michael Taylor','Daniel Chang','Laura Collins','Michael Taylor'][i]}</td>
-                    <td>{new Date(s.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</td>
-                    <td>{new Date(s.created_at).toISOString().slice(0,10)}</td>
+                    <td>{new Date(created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</td>
+                    <td>{new Date(created_at).toISOString().slice(0,10)}</td>
                     <td>{['Individual Therapy','Art Therapy','Stress Management','Family Counseling','Individual Therapy'][i]}</td>
                   </tr>
                 ))}
@@ -308,77 +382,86 @@ export default function App() {
     <>
       <div className="sub-header">
         <div className="breadcrumb"><span className="bc-dim">Reports</span> <span className="bc-sep">/</span> <span className="bc-active">Weekly</span></div>
-        <div className="date-display"><IconCalendar size={13} color="rgba(255,255,255,0.5)" style={{marginRight:6}}/>{todayStr}</div>
+        <div className="header-actions">
+          <button className="btn-refresh" onClick={loadSessions} disabled={sessionsStatus === 'loading'}>
+            <IconRefresh size={13} color="rgba(255,255,255,0.75)" style={sessionsStatus === 'loading' ? { animation: 'dash-spin 0.9s linear infinite' } : undefined}/>
+            Refresh
+          </button>
+          <div className="date-display"><IconCalendar size={13} color="rgba(255,255,255,0.5)" style={{marginRight:6}}/>{todayStr}</div>
+        </div>
       </div>
       <h1 className="page-title"><span className="fw-900">Weekly</span> Reports</h1>
 
-      <div className="reports-grid">
-        {/* ROM trend chart */}
-        <div className="glass-card chart-card-wide">
-          <h2 className="card-h2">ROM Recovery Trend</h2>
-          <span className="demo-tag">DATA CONTOH / ILUSTRASI</span>
-          <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={SESSIONS.map(s=>({...s, lbl: new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}))} margin={{top:15,right:10,left:-20,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
-                <XAxis dataKey="lbl" stroke="#a0aec0" fontSize={10}/>
-                <YAxis stroke="#a0aec0" fontSize={10} domain={[0,120]}/>
-                <Tooltip contentStyle={{backgroundColor:'rgba(20,14,30,0.95)',borderColor:'rgba(255,255,255,0.08)',borderRadius:8}} labelStyle={{color:'#a0aec0'}} itemStyle={{color:'#fff'}}/>
-                <ReferenceLine y={saved.targetRom} stroke="#00e676" strokeDasharray="4 4" label={{value:`Target ${saved.targetRom}°`,fill:'#00e676',position:'top',fontSize:10}}/>
-                <ReferenceLine y={saved.romCeiling} stroke="#ff5252" strokeDasharray="4 4" label={{value:`Ceiling ${saved.romCeiling}°`,fill:'#ff5252',position:'top',fontSize:10}}/>
-                <Line type="monotone" dataKey="peak_rom" name="Peak ROM" stroke="#00e5ff" strokeWidth={3} dot={{r:4,strokeWidth:2}} activeDot={{r:6}}/>
-              </LineChart>
-            </ResponsiveContainer>
+      {sessionsStatus === 'loading' && <DataState kind="loading"/>}
+      {sessionsStatus === 'error' && <DataState kind="error" message={sessionsError} onRetry={loadSessions}/>}
+      {sessionsStatus === 'ready' && sessions.length === 0 && <DataState kind="empty"/>}
+      {sessionsStatus === 'ready' && sessions.length > 0 && (
+        <div className="reports-grid">
+          {/* ROM trend chart */}
+          <div className="glass-card chart-card-wide">
+            <h2 className="card-h2">ROM Recovery Trend</h2>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={sessions.map(s=>({...s, lbl: new Date(s.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}))} margin={{top:15,right:10,left:-20,bottom:0}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+                  <XAxis dataKey="lbl" stroke="#a0aec0" fontSize={10}/>
+                  <YAxis stroke="#a0aec0" fontSize={10} domain={[0,120]}/>
+                  <Tooltip contentStyle={{backgroundColor:'rgba(20,14,30,0.95)',borderColor:'rgba(255,255,255,0.08)',borderRadius:8}} labelStyle={{color:'#a0aec0'}} itemStyle={{color:'#fff'}}/>
+                  <ReferenceLine y={saved.targetRom} stroke="#00e676" strokeDasharray="4 4" label={{value:`Target ${saved.targetRom}°`,fill:'#00e676',position:'top',fontSize:10}}/>
+                  <ReferenceLine y={saved.romCeiling} stroke="#ff5252" strokeDasharray="4 4" label={{value:`Ceiling ${saved.romCeiling}°`,fill:'#ff5252',position:'top',fontSize:10}}/>
+                  <Line type="monotone" dataKey="peak_rom" name="Peak ROM" stroke="#00e5ff" strokeWidth={3} dot={{r:4,strokeWidth:2}} activeDot={{r:6}}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
 
-        {/* Weekly bar chart */}
-        <div className="glass-card chart-card-narrow">
-          <h2 className="card-h2">Weekly Reps Distribution</h2>
-          <div className="chart-wrap">
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={WEEKLY_REPORT} margin={{top:10,right:10,left:-20,bottom:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
-                <XAxis dataKey="day" stroke="#a0aec0" fontSize={10}/>
-                <YAxis stroke="#a0aec0" fontSize={10}/>
-                <Tooltip contentStyle={{backgroundColor:'rgba(20,14,30,0.95)',borderColor:'rgba(255,255,255,0.08)',borderRadius:8}} labelStyle={{color:'#a0aec0'}} itemStyle={{color:'#fff'}}/>
-                <Bar dataKey="reps" fill="#c084fc" radius={[4,4,0,0]}/>
-              </BarChart>
-            </ResponsiveContainer>
+          {/* Weekly bar chart */}
+          <div className="glass-card chart-card-narrow">
+            <h2 className="card-h2">Weekly Reps Distribution</h2>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklyReport} margin={{top:10,right:10,left:-20,bottom:0}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+                  <XAxis dataKey="day" stroke="#a0aec0" fontSize={10}/>
+                  <YAxis stroke="#a0aec0" fontSize={10}/>
+                  <Tooltip contentStyle={{backgroundColor:'rgba(20,14,30,0.95)',borderColor:'rgba(255,255,255,0.08)',borderRadius:8}} labelStyle={{color:'#a0aec0'}} itemStyle={{color:'#fff'}}/>
+                  <Bar dataKey="reps" fill="#c084fc" radius={[4,4,0,0]}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
 
-        {/* Session history */}
-        <div className="glass-card full-width-card">
-          <div className="card-top-bar">
-            <h2 className="card-h2">Session History</h2>
-            <span className="demo-tag">DATA CONTOH / ILUSTRASI</span>
+          {/* Session history */}
+          <div className="glass-card full-width-card">
+            <div className="card-top-bar">
+              <h2 className="card-h2">Session History</h2>
+            </div>
+            <table className="sched-table">
+              <thead><tr><th>Date & Time</th><th>Exercise</th><th>Reps</th><th>Peak ROM</th><th>Duration</th><th>Status</th></tr></thead>
+              <tbody>
+                {sessions.map((s,i) => {
+                  const over = s.peak_rom > saved.romCeiling;
+                  return (
+                    <tr key={i} className={s.pain_flag==='stopped'?'row-danger':over?'row-warn':''}>
+                      <td className="dt-cell"><IconCalendar size={12} color="#a0aec0" style={{marginRight:6}}/>{fmtDate(s.created_at)}</td>
+                      <td>Forearm supination/pronation</td>
+                      <td className="center fw-700">{s.reps}</td>
+                      <td className={`fw-700 ${over?'color-danger':'color-cyan'}`}>{s.peak_rom}°</td>
+                      <td className="dt-cell"><IconClock size={12} color="#a0aec0" style={{marginRight:6}}/>{fmtDur(s.duration_ms)}</td>
+                      <td>
+                        {s.pain_flag==='stopped'&&<span className="badge badge-danger">Stopped</span>}
+                        {s.pain_flag==='mild'&&<span className="badge badge-warn">Mild</span>}
+                        {s.pain_flag==='none'&&!over&&<span className="badge badge-safe">Safe</span>}
+                        {over&&<span className="badge badge-over">Exceeded</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <table className="sched-table">
-            <thead><tr><th>Date & Time</th><th>Exercise</th><th>Reps</th><th>Peak ROM</th><th>Duration</th><th>Status</th></tr></thead>
-            <tbody>
-              {SESSIONS.map((s,i) => {
-                const over = s.peak_rom > saved.romCeiling;
-                return (
-                  <tr key={i} className={s.pain_flag==='stopped'?'row-danger':over?'row-warn':''}>
-                    <td className="dt-cell"><IconCalendar size={12} color="#a0aec0" style={{marginRight:6}}/>{fmtDate(s.created_at)}</td>
-                    <td>Forearm supination/pronation</td>
-                    <td className="center fw-700">{s.reps}</td>
-                    <td className={`fw-700 ${over?'color-danger':'color-cyan'}`}>{s.peak_rom}°</td>
-                    <td className="dt-cell"><IconClock size={12} color="#a0aec0" style={{marginRight:6}}/>{fmtDur(s.duration_ms)}</td>
-                    <td>
-                      {s.pain_flag==='stopped'&&<span className="badge badge-danger">Stopped</span>}
-                      {s.pain_flag==='mild'&&<span className="badge badge-warn">Mild</span>}
-                      {s.pain_flag==='none'&&!over&&<span className="badge badge-safe">Safe</span>}
-                      {over&&<span className="badge badge-over">Exceeded</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
-      </div>
+      )}
     </>
   );
 
@@ -462,6 +545,39 @@ export default function App() {
           <p>* Mock dashboard — data ilustrasi, tidak terhubung database production *</p>
         </footer>
       </div>
+    </div>
+  );
+}
+
+/* ─── Loading / error / empty state for real (Supabase) session data ─── */
+function DataState({ kind, message, onRetry }: {
+  kind: 'loading' | 'error' | 'empty';
+  message?: string | null;
+  onRetry?: () => void;
+}) {
+  if (kind === 'loading') {
+    return (
+      <div className="glass-card state-card">
+        <div className="state-spinner" />
+        <p className="state-text">Memuat data sesi dari Supabase…</p>
+      </div>
+    );
+  }
+  if (kind === 'error') {
+    return (
+      <div className="glass-card state-card state-card-error">
+        <IconShield size={22} color="#ff5252" />
+        <p className="state-text">Gagal memuat data sesi.</p>
+        <p className="state-sub">{message ?? 'Terjadi kesalahan tak terduga.'}</p>
+        {onRetry && <button className="btn-retry" onClick={onRetry}>Coba lagi</button>}
+      </div>
+    );
+  }
+  return (
+    <div className="glass-card state-card">
+      <IconActivity size={22} color="rgba(255,255,255,0.3)" />
+      <p className="state-text">Belum ada sesi untuk pasien ini.</p>
+      <p className="state-sub">Sesi baru akan muncul di sini setelah pasien menyelesaikan latihan di HP.</p>
     </div>
   );
 }
