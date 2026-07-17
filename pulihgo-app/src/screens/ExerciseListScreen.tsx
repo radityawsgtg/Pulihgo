@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { EXERCISES } from '../exercises/exerciseLibrary';
+import { usePrescription } from '../sync/usePrescription';
 import type { ExerciseConfig } from '../types';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,6 +14,7 @@ interface ExerciseListScreenProps {
 
 export default function ExerciseListScreen({ onSelect, theme, toggleTheme }: ExerciseListScreenProps) {
   const isDark = theme === 'dark';
+  const { rx } = usePrescription();
 
   const colors = {
     bg: isDark ? '#0b0e11' : '#FAFAF7',
@@ -69,36 +71,39 @@ export default function ExerciseListScreen({ onSelect, theme, toggleTheme }: Exe
 
       {/* Exercise Options */}
       <View style={styles.list}>
-        {EXERCISES.map((ex) => (
-          <Pressable
-            key={ex.id}
-            onPress={() => onSelect(ex)}
-            style={[
-              styles.exerciseCard,
-              { backgroundColor: colors.cardBg, borderColor: colors.border },
-            ]}
-            accessibilityRole="button"
-          >
-            <View style={[styles.iconWrapper, { backgroundColor: colors.accentSoft }]}>
-              <Ionicons name={getExerciseIcon(ex.id)} size={28} color={colors.accent} />
-            </View>
-            <View style={styles.cardInfo}>
-              <Text style={[styles.cardTitle, { color: colors.title }]}>{ex.name}</Text>
-              <Text style={[styles.cardDesc, { color: colors.body }]}>
-                {getExerciseDescription(ex.id)}
-              </Text>
-              <View style={styles.targetRow}>
-                <Ionicons name={ex.id === 'elbow_flexion_extension' ? 'alert-circle-outline' : 'checkmark-circle-outline'} size={14} color={ex.id === 'elbow_flexion_extension' ? '#C77800' : '#1E9E5A'} />
-                <Text style={[styles.targetText, { color: colors.body }]}>
-                  Target ROM: {ex.targetRomDeg}° {ex.id === 'elbow_flexion_extension' && '(clinical/tune)'}
-                </Text>
+        {EXERCISES.map((ex) => {
+          const targetRom = ex.id === 'forearm_supination' ? rx.targetRomDeg : ex.targetRomDeg;
+          return (
+            <Pressable
+              key={ex.id}
+              onPress={() => onSelect({ ...ex, targetRomDeg: targetRom })}
+              style={[
+                styles.exerciseCard,
+                { backgroundColor: colors.cardBg, borderColor: colors.border },
+              ]}
+              accessibilityRole="button"
+            >
+              <View style={[styles.iconWrapper, { backgroundColor: colors.accentSoft }]}>
+                <Ionicons name={getExerciseIcon(ex.id)} size={28} color={colors.accent} />
               </View>
-            </View>
-            <View style={styles.arrowWrapper}>
-              <Ionicons name="chevron-forward-outline" size={20} color={colors.body} />
-            </View>
-          </Pressable>
-        ))}
+              <View style={styles.cardInfo}>
+                <Text style={[styles.cardTitle, { color: colors.title }]}>{ex.name}</Text>
+                <Text style={[styles.cardDesc, { color: colors.body }]}>
+                  {getExerciseDescription(ex.id)}
+                </Text>
+                <View style={styles.targetRow}>
+                  <Ionicons name="checkmark-circle-outline" size={14} color="#1E9E5A" />
+                  <Text style={[styles.targetText, { color: colors.body }]}>
+                    Target ROM: {targetRom}°
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.arrowWrapper}>
+                <Ionicons name="chevron-forward-outline" size={20} color={colors.body} />
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* Context info for safety */}

@@ -292,7 +292,7 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
               <Text style={[styles.statLabel, { color: colors.body }]}>PEAK ANGLE</Text>
-              <Text style={[styles.statValue, { color: colors.title }]}>{peak.toFixed(0)}┬░</Text>
+              <Text style={[styles.statValue, { color: colors.title }]}>{peak.toFixed(0)}</Text>
             </View>
           </View>
 
@@ -304,7 +304,7 @@ export default function ExerciseScreen({ config, onExit, theme, toggleTheme }: E
             </Pressable>
             <Pressable onPress={() => save('stopped')} style={[styles.btnStop, { borderColor: colors.danger, backgroundColor: colors.dangerSoft }]} accessibilityRole="button">
               <Ionicons name="alert-circle" size={20} color={colors.danger} style={{ marginRight: 6 }} />
-              <Text style={[styles.btnStopText, { color: colors.danger }]}>Stop ΓÇö it hurts</Text>
+              <Text style={[styles.btnStopText, { color: colors.danger }]}>Stop, it hurts</Text>
             </Pressable>
           </View>
         </ScrollView>
