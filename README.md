@@ -26,18 +26,10 @@ Turn any phone into an objective range-of-motion sensor and a rehab coach — no
 
 ## 📸 Preview
 
-<!-- Drop the screenshots into .github/assets/ with these exact names and this
-     section renders on the GitHub homepage. See "Capturing the screenshots" below. -->
-
 | Exercise (live) | Therapist dashboard | Session summary |
 |:---:|:---:|:---:|
 | ![Exercise screen](.github/assets/exercise.png) | ![Dashboard](.github/assets/dashboard.png) | ![Summary](.github/assets/summary.png) |
 | Live angle, reps & ROM on-device | Prescribe target + ROM trend chart | Per-session report |
-
-> **The money shot for the top of this section is a short GIF of the two-way loop**
-> — therapist types a target on the laptop → the phone starts coaching to it → the
-> session lands in the dashboard chart. Save it as `.github/assets/loop.gif` and add
-> it right under the "Preview" heading.
 
 ---
 
@@ -195,24 +187,6 @@ honest, gyroscope-measured exercise. Depth on the core beats breadth on five
 broken features.
 
 ---
-
-## Capturing the screenshots
-
-The Preview section renders once these files exist. Create `.github/assets/`
-and drop them in — no build step, GitHub just shows them.
-
-| File | What to capture | How |
-|------|-----------------|-----|
-| `exercise.png` | Exercise screen mid-session — big angle number, reps, ROM | Phone screenshot while practising (the hero image) |
-| `dashboard.png` | Dashboard **Reports** tab — the ROM trend chart | Browser screenshot at `localhost:5173` |
-| `summary.png` | Session summary after Finish | Phone screenshot |
-| `loop.gif` | The two-way loop: dashboard target → phone → chart updates | Screen-record the demo, trim to ~8s, export GIF |
-
-Tips: portrait phone shots read best in the 3-column table; keep each under
-~500 KB (a binary in git is forever); avoid any real patient data — the demo
-uses `patient_id = 'demo01'`, so you're safe. Do **not** screenshot a session
-with an impossible reading (e.g. a 180° "rotation" from spinning the phone) —
-clear those first.
 
 ## Credits
 
