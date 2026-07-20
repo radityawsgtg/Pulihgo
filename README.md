@@ -1,10 +1,43 @@
+<div align="center">
+
 # PulihGo 🩺📱
 
-> **Gyroscope-based home stroke rehabilitation.** Turn a phone into an objective
-> range-of-motion sensor and a rehab coach — no extra hardware.
-> *"Pulih" = recover (Indonesian) + "Go".*
+**Gyroscope-based home stroke rehabilitation.**
+Turn any phone into an objective range-of-motion sensor and a rehab coach — no extra hardware.
+
+<br/>
+
+![1st Place](https://img.shields.io/badge/🏆_1st_Place-Health_Track-FFB020?style=for-the-badge)
+![Garuda Hacks 7.0](https://img.shields.io/badge/Garuda_Hacks-7.0-00E5FF?style=for-the-badge)
+
+![Expo](https://img.shields.io/badge/Expo_SDK_54-000020?style=flat&logo=expo&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-20232A?style=flat&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=flat&logo=supabase&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+
+*"Pulih" = recover (Indonesian) + "Go"*
 
 **The app MEASURES · the therapist PRESCRIBES · the patient PRACTISES.**
+
+</div>
+
+---
+
+## 📸 Preview
+
+<!-- Drop the screenshots into .github/assets/ with these exact names and this
+     section renders on the GitHub homepage. See "Capturing the screenshots" below. -->
+
+| Exercise (live) | Therapist dashboard | Session summary |
+|:---:|:---:|:---:|
+| ![Exercise screen](.github/assets/exercise.png) | ![Dashboard](.github/assets/dashboard.png) | ![Summary](.github/assets/summary.png) |
+| Live angle, reps & ROM on-device | Prescribe target + ROM trend chart | Per-session report |
+
+> **The money shot for the top of this section is a short GIF of the two-way loop**
+> — therapist types a target on the laptop → the phone starts coaching to it → the
+> session lands in the dashboard chart. Save it as `.github/assets/loop.gif` and add
+> it right under the "Preview" heading.
 
 ---
 
@@ -160,3 +193,28 @@ A clinician-prescribed home-rehab tool that measurably increases practice dose
 and gives therapists objective remote progress data — starting from this one
 honest, gyroscope-measured exercise. Depth on the core beats breadth on five
 broken features.
+
+---
+
+## Capturing the screenshots
+
+The Preview section renders once these files exist. Create `.github/assets/`
+and drop them in — no build step, GitHub just shows them.
+
+| File | What to capture | How |
+|------|-----------------|-----|
+| `exercise.png` | Exercise screen mid-session — big angle number, reps, ROM | Phone screenshot while practising (the hero image) |
+| `dashboard.png` | Dashboard **Reports** tab — the ROM trend chart | Browser screenshot at `localhost:5173` |
+| `summary.png` | Session summary after Finish | Phone screenshot |
+| `loop.gif` | The two-way loop: dashboard target → phone → chart updates | Screen-record the demo, trim to ~8s, export GIF |
+
+Tips: portrait phone shots read best in the 3-column table; keep each under
+~500 KB (a binary in git is forever); avoid any real patient data — the demo
+uses `patient_id = 'demo01'`, so you're safe. Do **not** screenshot a session
+with an impossible reading (e.g. a 180° "rotation" from spinning the phone) —
+clear those first.
+
+## Credits
+
+Built by **Raditya, Pradipta, Sulthan, and Adnan** for **Garuda Hacks 7.0** —
+🏆 **1st Place, Health Track**.
