@@ -26,10 +26,12 @@ Turn any phone into an objective range-of-motion sensor and a rehab coach — no
 
 ## 📸 Preview
 
-| Exercise (live) | Therapist dashboard | Session summary |
-|:---:|:---:|:---:|
-| ![Exercise screen](.github/assets/exercise.png) | ![Dashboard](.github/assets/dashboard.png) | ![Summary](.github/assets/summary.png) |
-| Live angle, reps & ROM on-device | Prescribe target + ROM trend chart | Per-session report |
+## 📸 Preview
+
+| In Action | Exercise (live) | Therapist dashboard | Session summary |
+|:---:|:---:|:---:|:---:|
+| ![In Action](.github/assets/in-action.jpeg) | ![Exercise screen](.github/assets/exercise.png) | ![Dashboard](.github/assets/dashboard.png) | ![Summary](.github/assets/summary.png) |
+| Phone strapped to forearm | Live angle, reps & ROM on-device | Prescribe target + ROM trend chart | Per-session report |
 
 ---
 
