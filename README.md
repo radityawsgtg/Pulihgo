@@ -47,7 +47,7 @@ Rehab exercises are fundamentally *rotational*. Rotation is angular velocity,
 which the gyroscope measures directly and the accelerometer barely sees. That is
 the whole bet.
 
-## Status — what actually works
+## Status - what actually works
 
 | | |
 |---|---|
@@ -70,7 +70,7 @@ against a clinical goniometer. See
 other directly — both talk to Supabase.
 
 ### Before you start
-- **Node.js LTS** — [nodejs.org](https://nodejs.org)
+- **Node.js LTS** - [nodejs.org](https://nodejs.org)
 - **Expo Go** on your phone (App Store / Play Store) — this project targets **SDK 54**
 - Laptop + phone on the **same wifi**
 
@@ -91,7 +91,7 @@ GARUDA7.0/
 > one of those two folders. Running `npx expo start` from the root fails with
 > `ConfigError: The expected package.json path ... does not exist`.
 
-### 2. Terminal 1 — the patient app 📱
+### 2. Terminal 1 - the patient app 📱
 
 ```bash
 cd pulihgo-app
@@ -105,7 +105,7 @@ Expo Go). Hot reload is on — save a file, the phone updates in ~1s.
 > The iOS **simulator has no gyroscope**. Anything sensor-related needs a
 > physical phone.
 
-### 3. Terminal 2 — the therapist dashboard 💻
+### 3. Terminal 2 - the therapist dashboard 💻
 
 Open a **second** terminal; leave Expo running in the first.
 
@@ -122,9 +122,9 @@ npm run dev           # → http://localhost:5173
 3. **Phone → Calibrate & Start** → strap it to your forearm, rotate palm up/down a few times → **Finish** → answer the pain check
 4. **Dashboard → Reports → Refresh** → your session appears in the chart
 
-Refresh is manual on purpose — there is no realtime subscription.
+Refresh is manual on purpose - there is no realtime subscription.
 
-### Optional — cloud sync
+### Optional - cloud sync
 
 Sync is **off** until you add credentials, and the app runs fine without them:
 fully local, one console warning. To enable it, copy each project's
