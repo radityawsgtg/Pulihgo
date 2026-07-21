@@ -26,8 +26,6 @@ Turn any phone into an objective range-of-motion sensor and a rehab coach — no
 
 ## 📸 Preview
 
-## 📸 Preview
-
 | In Action | Exercise (live) | Therapist dashboard | Session summary |
 |:---:|:---:|:---:|:---:|
 | ![In Action](.github/assets/in-action.jpeg) | ![Exercise screen](.github/assets/exercise.png) | ![Dashboard](.github/assets/dashboard.png) | ![Summary](.github/assets/summary.png) |
