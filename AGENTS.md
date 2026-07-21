@@ -29,9 +29,9 @@ dashboard later. It **supplements, never replaces** a therapist.
 | `src/types.ts` | Shared types — the contract. Import from here; never redefine. | Radit |
 | `src/sensors/` | Angle reading (`useDeviceAngle`), calibration (`useCalibratedAngle`), `mockAngle` | Radit |
 | `src/metrics/` | `repDetector`, `rom`, `smoothness` | Pradipta |
-| `src/safety/` | ROM ceiling + pain check | Sulthan |
-| `src/storage/` | local session storage | Sulthan |
-| `src/screens/` | `ExerciseScreen` (MVP loop), `GyroTestScreen`, `SummaryScreen` | Sulthan |
+| `src/safety/` | ROM ceiling + pain check | Radit |
+| `src/storage/` | local session storage | Radit |
+| `src/screens/` | `ExerciseScreen` (MVP loop), `GyroTestScreen`, `SummaryScreen` | Radit |
 
 ## 4. Glossary (use these exact terms in code + comments)
 
