@@ -9,7 +9,7 @@ one rotational exercise, safely. Everything else is a later phase.
 |--------|------|--------------------------|
 | **Raditya** | Tech Lead + core | `src/sensors/`, `src/types.ts`, `App.tsx`, `src/progress/`, + `src/screens/`, `src/storage/`, `src/safety/` (taken over), PR reviews, keeps `main` runnable |
 | **Pradipta** | Tech — metrics | `src/metrics/` (rep detection, ROM, smoothness) |
-| **Sulthan** | Research | clinician interview (`docs/05-…`) + `docs/04-research-references.md` |
+| **Sulthan** | UI/UX & Research (Frontend) | Responsible for all UI design for the app and therapist dashboard (frontend); clinician interview (`docs/05-…`) + `docs/04-research-references.md` |
 | **Adnan** | Pitch | deck, demo script, backup demo video, presenting (uses `docs/`) |
 
 Owning separate folders = building in parallel without merge conflicts. The
