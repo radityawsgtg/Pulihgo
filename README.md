@@ -3,7 +3,7 @@
 # PulihGo 🩺📱
 
 **Gyroscope-based home stroke rehabilitation.**
-Turn any phone into an objective range-of-motion sensor and a rehab coach — no extra hardware.
+Turn any phone into an objective range-of-motion sensor and a rehab coach - no extra hardware.
 
 <br/>
 
@@ -51,7 +51,7 @@ the whole bet.
 
 | | |
 |---|---|
-| 🟢 **Measurement** | Calibrated forearm angle on-device, rep counting, peak ROM in degrees, jerk-based smoothness. All computed in TypeScript on the phone — no ML, no DSP library. |
+| 🟢 **Measurement** | Calibrated forearm angle on-device, rep counting, peak ROM in degrees, jerk-based smoothness. All computed in TypeScript on the phone - no ML, no DSP library. |
 | 🟢 **Safety** | ROM ceiling warning + a one-tap "Stop - it hurts" that ends and flags the session. |
 | 🟢 **Offline-first** | A session saves to the device **before** any network call. Upload is best-effort; a dead network never stops a patient practising. |
 | 🟢 **Two-way loop** | Therapist sets the plan on the dashboard → the phone reads it on launch (server → cache → default) → results sync back → the dashboard charts them. |
@@ -67,11 +67,11 @@ against a clinical goniometer. See
 ## Run it (5 min)
 
 **Two apps, two terminals**, running at the same time. They never talk to each
-other directly — both talk to Supabase.
+other directly - both talk to Supabase.
 
 ### Before you start
 - **Node.js LTS** - [nodejs.org](https://nodejs.org)
-- **Expo Go** on your phone (App Store / Play Store) — this project targets **SDK 54**
+- **Expo Go** on your phone (App Store / Play Store) - this project targets **SDK 54**
 - Laptop + phone on the **same wifi**
 
 ### 1. Open the project
@@ -96,11 +96,11 @@ GARUDA7.0/
 ```bash
 cd pulihgo-app
 npm install           # .npmrc already sets legacy-peer-deps
-npx expo start        # a QR code appears — leave this running
+npx expo start        # a QR code appears - leave this running
 ```
 
 Scan the QR with **Expo Go** (iPhone: the Camera app; Android: scan from inside
-Expo Go). Hot reload is on — save a file, the phone updates in ~1s.
+Expo Go). Hot reload is on - save a file, the phone updates in ~1s.
 
 > The iOS **simulator has no gyroscope**. Anything sensor-related needs a
 > physical phone.
