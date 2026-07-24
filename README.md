@@ -40,7 +40,7 @@ window**, but a real outpatient session delivers about **12 useful arm
 movements**, and home practice fails from boredom and no feedback. PulihGo
 straps a phone to the forearm, uses the **gyroscope** to measure how far the limb
 rotates (in degrees), counts reps, scores movement quality, and streams progress
-to the therapist — who sets the target from a dashboard, and sees whether the
+to the therapist - who sets the target from a dashboard, and sees whether the
 patient actually practised.
 
 Rehab exercises are fundamentally *rotational*. Rotation is angular velocity,
@@ -52,7 +52,7 @@ the whole bet.
 | | |
 |---|---|
 | 🟢 **Measurement** | Calibrated forearm angle on-device, rep counting, peak ROM in degrees, jerk-based smoothness. All computed in TypeScript on the phone — no ML, no DSP library. |
-| 🟢 **Safety** | ROM ceiling warning + a one-tap "Stop — it hurts" that ends and flags the session. |
+| 🟢 **Safety** | ROM ceiling warning + a one-tap "Stop - it hurts" that ends and flags the session. |
 | 🟢 **Offline-first** | A session saves to the device **before** any network call. Upload is best-effort; a dead network never stops a patient practising. |
 | 🟢 **Two-way loop** | Therapist sets the plan on the dashboard → the phone reads it on launch (server → cache → default) → results sync back → the dashboard charts them. |
 | ⚪ **Not built** | The game layer, accounts/auth, raw-signal archiving, more than one exercise. |
