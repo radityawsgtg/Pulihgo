@@ -84,11 +84,13 @@ export default function ExerciseListScreen({ onSelect, theme, toggleTheme }: Exe
       {/* Exercise Options */}
       <View style={styles.list}>
         {EXERCISES.map((ex) => {
-          const targetRom = ex.id === 'forearm_supination' ? rx.targetRomDeg : ex.targetRomDeg;
+          const isPrescribed = ex.id === 'forearm_supination';
+          const targetRom = isPrescribed ? rx.targetRomDeg : ex.targetRomDeg;
+          const romCeiling = isPrescribed ? rx.romCeilingDeg : ex.romCeilingDeg;
           return (
             <Pressable
               key={ex.id}
-              onPress={() => onSelect({ ...ex, targetRomDeg: targetRom })}
+              onPress={() => onSelect({ ...ex, targetRomDeg: targetRom, romCeilingDeg: romCeiling })}
               style={[
                 styles.exerciseCard,
                 { backgroundColor: colors.cardBg, borderColor: colors.border },
